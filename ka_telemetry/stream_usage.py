@@ -52,7 +52,7 @@ from typing import Any
 
 from ka_telemetry import stream_paths
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 EVENT_API_REQUEST = "api_request"
 EVENT_SUBAGENT_COMPLETED = "subagent_completed"

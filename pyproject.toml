@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ka-telemetry"
-version = "0.1.0"
+version = "0.1.1"
 description = "Receives the telemetry stream Claude Code can send, reads the transcripts it keeps on this machine, and reports the tokens they record."
 readme = "README.md"
 authors = [{ name = "Eyal Golan" }]
@@ -32,7 +32,7 @@ classifiers = [
 Homepage = "https://github.com/eyalgo/ka-telemetry"
 Source = "https://github.com/eyalgo/ka-telemetry"
 Issues = "https://github.com/eyalgo/ka-telemetry/issues"
-Changelog = "https://github.com/eyalgo/ka-telemetry/blob/main/RELEASE_NOTES.md"
+Changelog = "https://github.com/eyalgo/ka-telemetry/tree/main/release_notes"
 "Built by" = "https://github.com/eyalgo/kensaiapp"
 
 [project.scripts]

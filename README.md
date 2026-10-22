@@ -190,6 +190,6 @@ ka-telemetry is at 0.x, and until 1.0.0 anything may change. kensaiapp now runs 
 
 ## Status
 
-What each release does is in [`RELEASE_NOTES.md`](RELEASE_NOTES.md).
+What each release does is in [`release_notes/`](release_notes/), one file per release.
 
 ka-telemetry does not yet state in every report what it read and what it could not read and why, or name every session that has no cost metric to check against and say it received no cost metric for it.
