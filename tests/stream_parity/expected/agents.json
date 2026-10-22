@@ -1,0 +1,392 @@
+{
+  "skipped_lines": 1,
+  "total_cost_usd": 1.31395265,
+  "rows": [
+    {
+      "session_id": "ee5d2a51-f34e-42e0-b38b-fa8dd8c5b593",
+      "workflow_run_id": null,
+      "query_source": "repl_main_thread",
+      "agent_name": null,
+      "kensai": {
+        "kensai.arm": "skill",
+        "kensai.chain": "change",
+        "kensai.instance": "example-team",
+        "kensai.product": "kasanari",
+        "kensai.project": "kasanari",
+        "kensai.role": "pm",
+        "kensai.run_id": "a7facad5-6380-4e10-be0a-13e98a3e31fd",
+        "kensai.skill": "shukuba-open",
+        "kensai.walk_id": "17aed005-a28c-47ca-b9de-2209ad2088a1"
+      },
+      "models": [
+        "claude-opus-5-5"
+      ],
+      "request_count": 15,
+      "input_tokens": 30,
+      "output_tokens": 9311,
+      "cache_read_tokens": 826617,
+      "cache_creation_tokens": 74811,
+      "cost_usd": 0.9501514,
+      "duration_ms": 104415
+    },
+    {
+      "session_id": "ddb179fa-fcdf-40fc-8fd0-8ca1bbc0f9d6",
+      "workflow_run_id": null,
+      "query_source": "sdk",
+      "agent_name": null,
+      "kensai": {},
+      "models": [
+        "claude-haiku-4-5-20251001"
+      ],
+      "request_count": 3,
+      "input_tokens": 30,
+      "output_tokens": 670,
+      "cache_read_tokens": 90974,
+      "cache_creation_tokens": 26178,
+      "cost_usd": 0.0648334,
+      "duration_ms": 9013
+    },
+    {
+      "session_id": "83a3a897-661c-46fa-a2be-a94d37f013e1",
+      "workflow_run_id": null,
+      "query_source": "sdk",
+      "agent_name": null,
+      "kensai": {
+        "kensai.arm": "two-arms-inline",
+        "kensai.run_id": "e3e8275c-e7d6-4cdb-88eb-69993d7b135d"
+      },
+      "models": [
+        "claude-haiku-4-5-20251001"
+      ],
+      "request_count": 2,
+      "input_tokens": 18,
+      "output_tokens": 1082,
+      "cache_read_tokens": 38952,
+      "cache_creation_tokens": 24427,
+      "cost_usd": 0.0581772,
+      "duration_ms": 16089
+    },
+    {
+      "session_id": "6547733b-af89-40a8-a524-2df28af94cae",
+      "workflow_run_id": null,
+      "query_source": "repl_main_thread",
+      "agent_name": null,
+      "kensai": {},
+      "models": [
+        "claude-haiku-4-5-20251001"
+      ],
+      "request_count": 1,
+      "input_tokens": 10,
+      "output_tokens": 55,
+      "cache_read_tokens": 27180,
+      "cache_creation_tokens": 24440,
+      "cost_usd": 0.051883,
+      "duration_ms": 1550
+    },
+    {
+      "session_id": "7931ae7c-d999-4286-b091-261680002258",
+      "workflow_run_id": null,
+      "query_source": "sdk",
+      "agent_name": null,
+      "kensai": {},
+      "models": [
+        "claude-haiku-4-5-20251001"
+      ],
+      "request_count": 1,
+      "input_tokens": 10,
+      "output_tokens": 42,
+      "cache_read_tokens": 13607,
+      "cache_creation_tokens": 24376,
+      "cost_usd": 0.050332699999999994,
+      "duration_ms": 1222
+    },
+    {
+      "session_id": "4d134142-c03d-4e8c-a5e7-c51658727f35",
+      "workflow_run_id": null,
+      "query_source": "agent:builtin:Explore",
+      "agent_name": "Explore",
+      "kensai": {
+        "kensai.arm": "two-arms-subagent",
+        "kensai.run_id": "d9364a4a-db59-4f12-a771-d4cc977af4cd"
+      },
+      "models": [
+        "claude-haiku-4-5-20251001"
+      ],
+      "request_count": 2,
+      "input_tokens": 18,
+      "output_tokens": 1166,
+      "cache_read_tokens": 11073,
+      "cache_creation_tokens": 24930,
+      "cost_usd": 0.0381178,
+      "duration_ms": 17133
+    },
+    {
+      "session_id": "e0fc17f8-99f6-4206-a895-fcde68af74da",
+      "workflow_run_id": null,
+      "query_source": "agent:builtin:Explore",
+      "agent_name": "Explore",
+      "kensai": {
+        "kensai.arm": "two-arms-subagent",
+        "kensai.run_id": "a7989cae-73bd-4cc8-bacf-57dc93000b5f"
+      },
+      "models": [
+        "claude-haiku-4-5-20251001"
+      ],
+      "request_count": 2,
+      "input_tokens": 18,
+      "output_tokens": 576,
+      "cache_read_tokens": 10096,
+      "cache_creation_tokens": 23932,
+      "cost_usd": 0.033822599999999994,
+      "duration_ms": 8119
+    },
+    {
+      "session_id": "4d134142-c03d-4e8c-a5e7-c51658727f35",
+      "workflow_run_id": null,
+      "query_source": "sdk",
+      "agent_name": null,
+      "kensai": {
+        "kensai.arm": "two-arms-subagent",
+        "kensai.run_id": "d9364a4a-db59-4f12-a771-d4cc977af4cd"
+      },
+      "models": [
+        "claude-haiku-4-5-20251001"
+      ],
+      "request_count": 2,
+      "input_tokens": 18,
+      "output_tokens": 430,
+      "cache_read_tokens": 42987,
+      "cache_creation_tokens": 8124,
+      "cost_usd": 0.022714699999999997,
+      "duration_ms": 4592
+    },
+    {
+      "session_id": "ddb179fa-fcdf-40fc-8fd0-8ca1bbc0f9d6",
+      "workflow_run_id": null,
+      "query_source": "agent:builtin:Explore",
+      "agent_name": "Explore",
+      "kensai": {},
+      "models": [
+        "claude-haiku-4-5-20251001"
+      ],
+      "request_count": 1,
+      "input_tokens": 10,
+      "output_tokens": 77,
+      "cache_read_tokens": 0,
+      "cache_creation_tokens": 12629,
+      "cost_usd": 0.016181249999999998,
+      "duration_ms": 1432
+    },
+    {
+      "session_id": "e0fc17f8-99f6-4206-a895-fcde68af74da",
+      "workflow_run_id": null,
+      "query_source": "sdk",
+      "agent_name": null,
+      "kensai": {
+        "kensai.arm": "two-arms-subagent",
+        "kensai.run_id": "a7989cae-73bd-4cc8-bacf-57dc93000b5f"
+      },
+      "models": [
+        "claude-haiku-4-5-20251001"
+      ],
+      "request_count": 3,
+      "input_tokens": 28,
+      "output_tokens": 492,
+      "cache_read_tokens": 76746,
+      "cache_creation_tokens": 1221,
+      "cost_usd": 0.0126046,
+      "duration_ms": 6255
+    },
+    {
+      "session_id": "56258bcf-fe22-4a20-aace-46d5dd412ec7",
+      "workflow_run_id": null,
+      "query_source": "sdk",
+      "agent_name": null,
+      "kensai": {
+        "kensai.arm": "two-arms-inline",
+        "kensai.run_id": "66c4d1e4-1dc9-4066-bd7d-bbb4aec79c1e"
+      },
+      "models": [
+        "claude-haiku-4-5-20251001"
+      ],
+      "request_count": 2,
+      "input_tokens": 18,
+      "output_tokens": 325,
+      "cache_read_tokens": 50690,
+      "cache_creation_tokens": 1177,
+      "cost_usd": 0.009066000000000001,
+      "duration_ms": 4127
+    },
+    {
+      "session_id": "6547733b-af89-40a8-a524-2df28af94cae",
+      "workflow_run_id": null,
+      "query_source": "generate_session_title",
+      "agent_name": null,
+      "kensai": {},
+      "models": [
+        "claude-haiku-4-5-20251001"
+      ],
+      "request_count": 2,
+      "input_tokens": 1794,
+      "output_tokens": 19,
+      "cache_read_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cost_usd": 0.001889,
+      "duration_ms": 2030
+    },
+    {
+      "session_id": "e0fc17f8-99f6-4206-a895-fcde68af74da",
+      "workflow_run_id": null,
+      "query_source": "generate_session_title",
+      "agent_name": null,
+      "kensai": {
+        "kensai.arm": "two-arms-subagent",
+        "kensai.run_id": "a7989cae-73bd-4cc8-bacf-57dc93000b5f"
+      },
+      "models": [
+        "claude-haiku-4-5-20251001"
+      ],
+      "request_count": 1,
+      "input_tokens": 976,
+      "output_tokens": 16,
+      "cache_read_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cost_usd": 0.001056,
+      "duration_ms": 895
+    },
+    {
+      "session_id": "4d134142-c03d-4e8c-a5e7-c51658727f35",
+      "workflow_run_id": null,
+      "query_source": "generate_session_title",
+      "agent_name": null,
+      "kensai": {
+        "kensai.arm": "two-arms-subagent",
+        "kensai.run_id": "d9364a4a-db59-4f12-a771-d4cc977af4cd"
+      },
+      "models": [
+        "claude-haiku-4-5-20251001"
+      ],
+      "request_count": 1,
+      "input_tokens": 976,
+      "output_tokens": 15,
+      "cache_read_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cost_usd": 0.001051,
+      "duration_ms": 993
+    },
+    {
+      "session_id": "83a3a897-661c-46fa-a2be-a94d37f013e1",
+      "workflow_run_id": null,
+      "query_source": "generate_session_title",
+      "agent_name": null,
+      "kensai": {
+        "kensai.arm": "two-arms-inline",
+        "kensai.run_id": "e3e8275c-e7d6-4cdb-88eb-69993d7b135d"
+      },
+      "models": [
+        "claude-haiku-4-5-20251001"
+      ],
+      "request_count": 1,
+      "input_tokens": 966,
+      "output_tokens": 14,
+      "cache_read_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cost_usd": 0.001036,
+      "duration_ms": 807
+    },
+    {
+      "session_id": "56258bcf-fe22-4a20-aace-46d5dd412ec7",
+      "workflow_run_id": null,
+      "query_source": "generate_session_title",
+      "agent_name": null,
+      "kensai": {
+        "kensai.arm": "two-arms-inline",
+        "kensai.run_id": "66c4d1e4-1dc9-4066-bd7d-bbb4aec79c1e"
+      },
+      "models": [
+        "claude-haiku-4-5-20251001"
+      ],
+      "request_count": 1,
+      "input_tokens": 966,
+      "output_tokens": 14,
+      "cache_read_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cost_usd": 0.001036,
+      "duration_ms": 725
+    }
+  ],
+  "subagent_coverage_note": "subagent_completed counts Agent-tool agents only \u2014 a Workflow step's own requests (query_source \"agent:builtin:workflow-subagent\") emit no subagent_completed record, so this count does not cover them.",
+  "subagent_rows": [
+    {
+      "session_id": "4d134142-c03d-4e8c-a5e7-c51658727f35",
+      "agent_type": "Explore",
+      "count": 1,
+      "duration_ms": 17333,
+      "total_tool_uses": 1
+    },
+    {
+      "session_id": "ddb179fa-fcdf-40fc-8fd0-8ca1bbc0f9d6",
+      "agent_type": "Explore",
+      "count": 1,
+      "duration_ms": 1567,
+      "total_tool_uses": 0
+    },
+    {
+      "session_id": "e0fc17f8-99f6-4206-a895-fcde68af74da",
+      "agent_type": "Explore",
+      "count": 1,
+      "duration_ms": 8345,
+      "total_tool_uses": 1
+    }
+  ],
+  "metrics_check": [
+    {
+      "session_id": "4d134142-c03d-4e8c-a5e7-c51658727f35",
+      "log_cost_usd": 0.061883499999999994,
+      "metric_cost_usd": 0.061883499999999994,
+      "within_tolerance": true
+    },
+    {
+      "session_id": "56258bcf-fe22-4a20-aace-46d5dd412ec7",
+      "log_cost_usd": 0.010102000000000002,
+      "metric_cost_usd": 0.010102000000000002,
+      "within_tolerance": true
+    },
+    {
+      "session_id": "6547733b-af89-40a8-a524-2df28af94cae",
+      "log_cost_usd": 0.053772,
+      "metric_cost_usd": 0.053772,
+      "within_tolerance": true
+    },
+    {
+      "session_id": "7931ae7c-d999-4286-b091-261680002258",
+      "log_cost_usd": 0.050332699999999994,
+      "metric_cost_usd": null,
+      "within_tolerance": null
+    },
+    {
+      "session_id": "83a3a897-661c-46fa-a2be-a94d37f013e1",
+      "log_cost_usd": 0.0592132,
+      "metric_cost_usd": 0.0592132,
+      "within_tolerance": true
+    },
+    {
+      "session_id": "ddb179fa-fcdf-40fc-8fd0-8ca1bbc0f9d6",
+      "log_cost_usd": 0.08101465,
+      "metric_cost_usd": 0.08101465,
+      "within_tolerance": true
+    },
+    {
+      "session_id": "e0fc17f8-99f6-4206-a895-fcde68af74da",
+      "log_cost_usd": 0.047483199999999996,
+      "metric_cost_usd": 0.047483199999999996,
+      "within_tolerance": true
+    },
+    {
+      "session_id": "ee5d2a51-f34e-42e0-b38b-fa8dd8c5b593",
+      "log_cost_usd": 0.9501514,
+      "metric_cost_usd": 0.7274849999999999,
+      "within_tolerance": false
+    }
+  ]
+}

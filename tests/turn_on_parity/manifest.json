@@ -1,0 +1,828 @@
+{
+  "dev_repository": "kensaiapp's development repository",
+  "dev_commit": "3b5746f91d70763ea2115f896c1d694b7ab77e89",
+  "dev_sources": [
+    "core/tools/apply_telemetry_env.py",
+    "core/tools/instrument_run.sh"
+  ],
+  "product_base_commit": "0f929d1",
+  "capture": {
+    "directory": "a new directory outside any git repository for every case; paths in a case are relative to it",
+    "environment": {
+      "HOME": "a new, empty directory",
+      "PATH": "the capturing machine's PATH",
+      "named per case": "INSTRUMENT_RUN_ENDPOINT_FILE and INSTRUMENT_RUN_ARM for a print case, nothing for a write or remove case"
+    },
+    "arm": "fixed",
+    "writer": "dev's apply_telemetry_env.py run as a script with the case's argv",
+    "library": "dev's instrument_run.sh sourced, then `instrument_run` called with the case's labels as key=value",
+    "python": "3.14.7"
+  },
+  "cases": [
+    {
+      "id": "write-into-an-absent-settings-file",
+      "kind": "write-or-remove",
+      "argv": [
+        "--settings-file",
+        "s.json",
+        "--endpoint-file",
+        "ep"
+      ],
+      "environment": {},
+      "files_before": {
+        "ep": {
+          "text": "http://localhost:4318\n"
+        }
+      },
+      "stdout": "",
+      "stderr": "",
+      "returncode": 0,
+      "settings_after": {
+        "text": "{\n  \"env\": {\n    \"CLAUDE_CODE_ENABLE_TELEMETRY\": \"1\",\n    \"OTEL_METRICS_EXPORTER\": \"otlp\",\n    \"OTEL_LOGS_EXPORTER\": \"otlp\",\n    \"OTEL_EXPORTER_OTLP_PROTOCOL\": \"http/json\",\n    \"OTEL_EXPORTER_OTLP_ENDPOINT\": \"http://localhost:4318\"\n  }\n}\n"
+      }
+    },
+    {
+      "id": "write-keeps-other-keys-and-a-non-ascii-value",
+      "kind": "write-or-remove",
+      "argv": [
+        "--settings-file",
+        "s.json",
+        "--endpoint-file",
+        "ep"
+      ],
+      "environment": {},
+      "files_before": {
+        "ep": {
+          "text": "http://localhost:4318\n"
+        },
+        "s.json": {
+          "text": "{\n  \"env\": {\n    \"KEEP\": \"café\"\n  },\n  \"x\": 1\n}\n"
+        }
+      },
+      "stdout": "",
+      "stderr": "",
+      "returncode": 0,
+      "settings_after": {
+        "text": "{\n  \"env\": {\n    \"KEEP\": \"café\",\n    \"CLAUDE_CODE_ENABLE_TELEMETRY\": \"1\",\n    \"OTEL_METRICS_EXPORTER\": \"otlp\",\n    \"OTEL_LOGS_EXPORTER\": \"otlp\",\n    \"OTEL_EXPORTER_OTLP_PROTOCOL\": \"http/json\",\n    \"OTEL_EXPORTER_OTLP_ENDPOINT\": \"http://localhost:4318\"\n  },\n  \"x\": 1\n}\n"
+      }
+    },
+    {
+      "id": "write-again-over-its-own-output",
+      "kind": "write-or-remove",
+      "argv": [
+        "--settings-file",
+        "s.json",
+        "--endpoint-file",
+        "ep"
+      ],
+      "environment": {},
+      "files_before": {
+        "ep": {
+          "text": "http://localhost:4318\n"
+        },
+        "s.json": {
+          "text": "{\n  \"env\": {\n    \"KEEP\": \"café\",\n    \"CLAUDE_CODE_ENABLE_TELEMETRY\": \"1\",\n    \"OTEL_METRICS_EXPORTER\": \"otlp\",\n    \"OTEL_LOGS_EXPORTER\": \"otlp\",\n    \"OTEL_EXPORTER_OTLP_PROTOCOL\": \"http/json\",\n    \"OTEL_EXPORTER_OTLP_ENDPOINT\": \"http://localhost:4318\"\n  },\n  \"x\": 1\n}\n"
+        }
+      },
+      "stdout": "",
+      "stderr": "",
+      "returncode": 0,
+      "settings_after": {
+        "text": "{\n  \"env\": {\n    \"KEEP\": \"café\",\n    \"CLAUDE_CODE_ENABLE_TELEMETRY\": \"1\",\n    \"OTEL_METRICS_EXPORTER\": \"otlp\",\n    \"OTEL_LOGS_EXPORTER\": \"otlp\",\n    \"OTEL_EXPORTER_OTLP_PROTOCOL\": \"http/json\",\n    \"OTEL_EXPORTER_OTLP_ENDPOINT\": \"http://localhost:4318\"\n  },\n  \"x\": 1\n}\n"
+      }
+    },
+    {
+      "id": "write-over-a-user-value-without-replace",
+      "kind": "write-or-remove",
+      "argv": [
+        "--settings-file",
+        "s.json",
+        "--endpoint-file",
+        "ep"
+      ],
+      "environment": {},
+      "files_before": {
+        "ep": {
+          "text": "http://localhost:4318\n"
+        },
+        "s.json": {
+          "text": "{\n  \"env\": {\n    \"OTEL_EXPORTER_OTLP_ENDPOINT\": \"https://c.example\"\n  }\n}\n"
+        }
+      },
+      "stdout": "",
+      "stderr": "error: s.json already sets OTEL_EXPORTER_OTLP_ENDPOINT to other values; nothing written. Pass --replace to overwrite them.\n",
+      "returncode": 1,
+      "settings_after": {
+        "text": "{\n  \"env\": {\n    \"OTEL_EXPORTER_OTLP_ENDPOINT\": \"https://c.example\"\n  }\n}\n"
+      }
+    },
+    {
+      "id": "write-over-a-user-value-with-replace",
+      "kind": "write-or-remove",
+      "argv": [
+        "--settings-file",
+        "s.json",
+        "--endpoint-file",
+        "ep",
+        "--replace"
+      ],
+      "environment": {},
+      "files_before": {
+        "ep": {
+          "text": "http://localhost:4318\n"
+        },
+        "s.json": {
+          "text": "{\n  \"env\": {\n    \"OTEL_EXPORTER_OTLP_ENDPOINT\": \"https://c.example\"\n  }\n}\n"
+        }
+      },
+      "stdout": "",
+      "stderr": "",
+      "returncode": 0,
+      "settings_after": {
+        "text": "{\n  \"env\": {\n    \"OTEL_EXPORTER_OTLP_ENDPOINT\": \"http://localhost:4318\",\n    \"CLAUDE_CODE_ENABLE_TELEMETRY\": \"1\",\n    \"OTEL_METRICS_EXPORTER\": \"otlp\",\n    \"OTEL_LOGS_EXPORTER\": \"otlp\",\n    \"OTEL_EXPORTER_OTLP_PROTOCOL\": \"http/json\"\n  }\n}\n"
+      }
+    },
+    {
+      "id": "write-with-no-endpoint-and-no-settings-file",
+      "kind": "write-or-remove",
+      "argv": [
+        "--settings-file",
+        "s.json",
+        "--endpoint-file",
+        "ep"
+      ],
+      "environment": {},
+      "files_before": {},
+      "stdout": "no published telemetry endpoint at ep — machine has no receiver, nothing written\n",
+      "stderr": "",
+      "returncode": 0,
+      "settings_after": null
+    },
+    {
+      "id": "write-with-no-endpoint-and-a-settings-file",
+      "kind": "write-or-remove",
+      "argv": [
+        "--settings-file",
+        "s.json",
+        "--endpoint-file",
+        "ep"
+      ],
+      "environment": {},
+      "files_before": {
+        "s.json": {
+          "text": "{\n  \"env\": {\n    \"KEEP\": \"café\"\n  },\n  \"x\": 1\n}\n"
+        }
+      },
+      "stdout": "no published telemetry endpoint at ep — machine has no receiver, nothing written\n",
+      "stderr": "",
+      "returncode": 0,
+      "settings_after": {
+        "text": "{\n  \"env\": {\n    \"KEEP\": \"café\"\n  },\n  \"x\": 1\n}\n"
+      }
+    },
+    {
+      "id": "remove-after-a-write",
+      "kind": "write-or-remove",
+      "argv": [
+        "--settings-file",
+        "s.json",
+        "--endpoint-file",
+        "ep",
+        "--remove"
+      ],
+      "environment": {},
+      "files_before": {
+        "ep": {
+          "text": "http://localhost:4318\n"
+        },
+        "s.json": {
+          "text": "{\n  \"env\": {\n    \"KEEP\": \"café\",\n    \"CLAUDE_CODE_ENABLE_TELEMETRY\": \"1\",\n    \"OTEL_METRICS_EXPORTER\": \"otlp\",\n    \"OTEL_LOGS_EXPORTER\": \"otlp\",\n    \"OTEL_EXPORTER_OTLP_PROTOCOL\": \"http/json\",\n    \"OTEL_EXPORTER_OTLP_ENDPOINT\": \"http://localhost:4318\"\n  },\n  \"x\": 1\n}\n"
+        }
+      },
+      "stdout": "",
+      "stderr": "",
+      "returncode": 0,
+      "settings_after": {
+        "text": "{\n  \"env\": {\n    \"KEEP\": \"café\"\n  },\n  \"x\": 1\n}\n"
+      }
+    },
+    {
+      "id": "remove-drops-the-emptied-env",
+      "kind": "write-or-remove",
+      "argv": [
+        "--settings-file",
+        "s.json",
+        "--endpoint-file",
+        "ep",
+        "--remove"
+      ],
+      "environment": {},
+      "files_before": {
+        "ep": {
+          "text": "http://localhost:4318\n"
+        },
+        "s.json": {
+          "text": "{\n  \"env\": {\n    \"CLAUDE_CODE_ENABLE_TELEMETRY\": \"1\",\n    \"OTEL_METRICS_EXPORTER\": \"otlp\",\n    \"OTEL_LOGS_EXPORTER\": \"otlp\",\n    \"OTEL_EXPORTER_OTLP_PROTOCOL\": \"http/json\",\n    \"OTEL_EXPORTER_OTLP_ENDPOINT\": \"http://localhost:4318\"\n  }\n}\n"
+        }
+      },
+      "stdout": "",
+      "stderr": "",
+      "returncode": 0,
+      "settings_after": {
+        "text": "{}\n"
+      }
+    },
+    {
+      "id": "remove-where-a-key-holds-the-users-value",
+      "kind": "write-or-remove",
+      "argv": [
+        "--settings-file",
+        "s.json",
+        "--endpoint-file",
+        "ep",
+        "--remove"
+      ],
+      "environment": {},
+      "files_before": {
+        "ep": {
+          "text": "http://localhost:4318\n"
+        },
+        "s.json": {
+          "text": "{\n  \"env\": {\n    \"CLAUDE_CODE_ENABLE_TELEMETRY\": \"1\",\n    \"OTEL_EXPORTER_OTLP_ENDPOINT\": \"https://c.example\"\n  }\n}\n"
+        }
+      },
+      "stdout": "left OTEL_EXPORTER_OTLP_ENDPOINT — not the value this command writes\n",
+      "stderr": "",
+      "returncode": 0,
+      "settings_after": {
+        "text": "{\n  \"env\": {\n    \"OTEL_EXPORTER_OTLP_ENDPOINT\": \"https://c.example\"\n  }\n}\n"
+      }
+    },
+    {
+      "id": "remove-with-no-endpoint-without-force",
+      "kind": "write-or-remove",
+      "argv": [
+        "--settings-file",
+        "s.json",
+        "--endpoint-file",
+        "ep",
+        "--remove"
+      ],
+      "environment": {},
+      "files_before": {
+        "s.json": {
+          "text": "{\n  \"env\": {\n    \"CLAUDE_CODE_ENABLE_TELEMETRY\": \"1\",\n    \"OTEL_METRICS_EXPORTER\": \"otlp\",\n    \"OTEL_LOGS_EXPORTER\": \"otlp\",\n    \"OTEL_EXPORTER_OTLP_PROTOCOL\": \"http/json\",\n    \"OTEL_EXPORTER_OTLP_ENDPOINT\": \"http://localhost:4318\",\n    \"KEEP\": \"me\"\n  }\n}\n"
+        }
+      },
+      "stdout": "",
+      "stderr": "error: no published telemetry endpoint — cannot tell this command's entry from values you set yourself; nothing written. Pass --force to delete the five keys anyway.\n",
+      "returncode": 1,
+      "settings_after": {
+        "text": "{\n  \"env\": {\n    \"CLAUDE_CODE_ENABLE_TELEMETRY\": \"1\",\n    \"OTEL_METRICS_EXPORTER\": \"otlp\",\n    \"OTEL_LOGS_EXPORTER\": \"otlp\",\n    \"OTEL_EXPORTER_OTLP_PROTOCOL\": \"http/json\",\n    \"OTEL_EXPORTER_OTLP_ENDPOINT\": \"http://localhost:4318\",\n    \"KEEP\": \"me\"\n  }\n}\n"
+      }
+    },
+    {
+      "id": "remove-with-no-endpoint-with-force",
+      "kind": "write-or-remove",
+      "argv": [
+        "--settings-file",
+        "s.json",
+        "--endpoint-file",
+        "ep",
+        "--remove",
+        "--force"
+      ],
+      "environment": {},
+      "files_before": {
+        "s.json": {
+          "text": "{\n  \"env\": {\n    \"CLAUDE_CODE_ENABLE_TELEMETRY\": \"1\",\n    \"OTEL_METRICS_EXPORTER\": \"otlp\",\n    \"OTEL_LOGS_EXPORTER\": \"otlp\",\n    \"OTEL_EXPORTER_OTLP_PROTOCOL\": \"http/json\",\n    \"OTEL_EXPORTER_OTLP_ENDPOINT\": \"http://localhost:4318\",\n    \"KEEP\": \"me\"\n  }\n}\n"
+        }
+      },
+      "stdout": "",
+      "stderr": "",
+      "returncode": 0,
+      "settings_after": {
+        "text": "{\n  \"env\": {\n    \"KEEP\": \"me\"\n  }\n}\n"
+      }
+    },
+    {
+      "id": "remove-with-nothing-to-remove",
+      "kind": "write-or-remove",
+      "argv": [
+        "--settings-file",
+        "s.json",
+        "--endpoint-file",
+        "ep",
+        "--remove"
+      ],
+      "environment": {},
+      "files_before": {
+        "ep": {
+          "text": "http://localhost:4318\n"
+        },
+        "s.json": {
+          "text": "{\n  \"permissions\": {}\n}\n"
+        }
+      },
+      "stdout": "no telemetry keys to remove — nothing written\n",
+      "stderr": "",
+      "returncode": 0,
+      "settings_after": {
+        "text": "{\n  \"permissions\": {}\n}\n"
+      }
+    },
+    {
+      "id": "remove-from-an-absent-settings-file",
+      "kind": "write-or-remove",
+      "argv": [
+        "--settings-file",
+        "s.json",
+        "--endpoint-file",
+        "ep",
+        "--remove"
+      ],
+      "environment": {},
+      "files_before": {
+        "ep": {
+          "text": "http://localhost:4318\n"
+        }
+      },
+      "stdout": "no telemetry keys to remove — nothing written\n",
+      "stderr": "",
+      "returncode": 0,
+      "settings_after": null
+    },
+    {
+      "id": "write-into-invalid-json",
+      "kind": "write-or-remove",
+      "argv": [
+        "--settings-file",
+        "s.json",
+        "--endpoint-file",
+        "ep"
+      ],
+      "environment": {},
+      "files_before": {
+        "ep": {
+          "text": "http://localhost:4318\n"
+        },
+        "s.json": {
+          "text": "nope"
+        }
+      },
+      "stdout": "",
+      "stderr": "error: s.json is not valid JSON (Expecting value: line 1 column 1 (char 0)); nothing written\n",
+      "returncode": 1,
+      "settings_after": {
+        "text": "nope"
+      }
+    },
+    {
+      "id": "remove-from-invalid-json",
+      "kind": "write-or-remove",
+      "argv": [
+        "--settings-file",
+        "s.json",
+        "--endpoint-file",
+        "ep",
+        "--remove"
+      ],
+      "environment": {},
+      "files_before": {
+        "ep": {
+          "text": "http://localhost:4318\n"
+        },
+        "s.json": {
+          "text": "nope"
+        }
+      },
+      "stdout": "",
+      "stderr": "error: s.json is not valid JSON (Expecting value: line 1 column 1 (char 0)); nothing written\n",
+      "returncode": 1,
+      "settings_after": {
+        "text": "nope"
+      }
+    },
+    {
+      "id": "write-into-a-json-array",
+      "kind": "write-or-remove",
+      "argv": [
+        "--settings-file",
+        "s.json",
+        "--endpoint-file",
+        "ep"
+      ],
+      "environment": {},
+      "files_before": {
+        "ep": {
+          "text": "http://localhost:4318\n"
+        },
+        "s.json": {
+          "text": "[1, 2]\n"
+        }
+      },
+      "stdout": "",
+      "stderr": "error: s.json is not a JSON object; nothing written\n",
+      "returncode": 1,
+      "settings_after": {
+        "text": "[1, 2]\n"
+      }
+    },
+    {
+      "id": "remove-from-a-json-array",
+      "kind": "write-or-remove",
+      "argv": [
+        "--settings-file",
+        "s.json",
+        "--endpoint-file",
+        "ep",
+        "--remove"
+      ],
+      "environment": {},
+      "files_before": {
+        "ep": {
+          "text": "http://localhost:4318\n"
+        },
+        "s.json": {
+          "text": "[1, 2]\n"
+        }
+      },
+      "stdout": "",
+      "stderr": "error: s.json is not a JSON object; nothing written\n",
+      "returncode": 1,
+      "settings_after": {
+        "text": "[1, 2]\n"
+      }
+    },
+    {
+      "id": "write-into-an-env-that-is-not-an-object",
+      "kind": "write-or-remove",
+      "argv": [
+        "--settings-file",
+        "s.json",
+        "--endpoint-file",
+        "ep"
+      ],
+      "environment": {},
+      "files_before": {
+        "ep": {
+          "text": "http://localhost:4318\n"
+        },
+        "s.json": {
+          "text": "{\"env\": \"x\"}\n"
+        }
+      },
+      "stdout": "",
+      "stderr": "error: s.json has an env that is not a JSON object; nothing written\n",
+      "returncode": 1,
+      "settings_after": {
+        "text": "{\"env\": \"x\"}\n"
+      }
+    },
+    {
+      "id": "write-into-bytes-that-are-not-utf8",
+      "kind": "write-or-remove",
+      "argv": [
+        "--settings-file",
+        "s.json",
+        "--endpoint-file",
+        "ep"
+      ],
+      "environment": {},
+      "files_before": {
+        "ep": {
+          "text": "http://localhost:4318\n"
+        },
+        "s.json": {
+          "b64": "eyJlbnYiOiB7IkEiOiAi/yJ9fQ=="
+        }
+      },
+      "stdout": "",
+      "stderr": "error: s.json is not valid JSON ('utf-8' codec can't decode byte 0xff in position 15: invalid start byte); nothing written\n",
+      "returncode": 1,
+      "settings_after": {
+        "b64": "eyJlbnYiOiB7IkEiOiAi/yJ9fQ=="
+      }
+    },
+    {
+      "id": "write-into-an-env-of-null",
+      "kind": "write-or-remove",
+      "argv": [
+        "--settings-file",
+        "s.json",
+        "--endpoint-file",
+        "ep"
+      ],
+      "environment": {},
+      "files_before": {
+        "ep": {
+          "text": "http://localhost:4318\n"
+        },
+        "s.json": {
+          "text": "{\"env\": null}\n"
+        }
+      },
+      "stdout": "",
+      "stderr": "",
+      "returncode": 0,
+      "settings_after": {
+        "text": "{\n  \"env\": {\n    \"CLAUDE_CODE_ENABLE_TELEMETRY\": \"1\",\n    \"OTEL_METRICS_EXPORTER\": \"otlp\",\n    \"OTEL_LOGS_EXPORTER\": \"otlp\",\n    \"OTEL_EXPORTER_OTLP_PROTOCOL\": \"http/json\",\n    \"OTEL_EXPORTER_OTLP_ENDPOINT\": \"http://localhost:4318\"\n  }\n}\n"
+      }
+    },
+    {
+      "id": "write-into-an-empty-settings-file",
+      "kind": "write-or-remove",
+      "argv": [
+        "--settings-file",
+        "s.json",
+        "--endpoint-file",
+        "ep"
+      ],
+      "environment": {},
+      "files_before": {
+        "ep": {
+          "text": "http://localhost:4318\n"
+        },
+        "s.json": {
+          "text": ""
+        }
+      },
+      "stdout": "",
+      "stderr": "error: s.json is not valid JSON (Expecting value: line 1 column 1 (char 0)); nothing written\n",
+      "returncode": 1,
+      "settings_after": {
+        "text": ""
+      }
+    },
+    {
+      "id": "print-no-labels",
+      "kind": "print",
+      "labels": [],
+      "endpoint_file": "ep",
+      "environment": {
+        "INSTRUMENT_RUN_ENDPOINT_FILE": "ep",
+        "INSTRUMENT_RUN_ARM": "fixed"
+      },
+      "files_before": {
+        "ep": {
+          "text": "http://localhost:4318\n"
+        }
+      },
+      "printed": "          Telemetry:    kensai.arm=fixed,kensai.run_id=d6f919f4-8dcb-441e-8ea2-0cfed8ff73ef → http://localhost:4318\n",
+      "settings": "{\"env\":{\"CLAUDE_CODE_ENABLE_TELEMETRY\":\"1\",\"OTEL_METRICS_EXPORTER\":\"otlp\",\"OTEL_LOGS_EXPORTER\":\"otlp\",\"OTEL_EXPORTER_OTLP_PROTOCOL\":\"http/json\",\"OTEL_EXPORTER_OTLP_ENDPOINT\":\"http://localhost:4318\",\"OTEL_RESOURCE_ATTRIBUTES\":\"kensai.arm=fixed,kensai.run_id=d6f919f4-8dcb-441e-8ea2-0cfed8ff73ef\"}}"
+    },
+    {
+      "id": "print-two-plain-labels",
+      "kind": "print",
+      "labels": [
+        "project=widgetco",
+        "skill=development-specs"
+      ],
+      "endpoint_file": "ep",
+      "environment": {
+        "INSTRUMENT_RUN_ENDPOINT_FILE": "ep",
+        "INSTRUMENT_RUN_ARM": "fixed"
+      },
+      "files_before": {
+        "ep": {
+          "text": "http://localhost:4318\n"
+        }
+      },
+      "printed": "          Telemetry:    kensai.arm=fixed,kensai.run_id=d3dc3e2b-3c23-489a-9dda-170ee70a9507,kensai.project=widgetco,kensai.skill=development-specs → http://localhost:4318\n",
+      "settings": "{\"env\":{\"CLAUDE_CODE_ENABLE_TELEMETRY\":\"1\",\"OTEL_METRICS_EXPORTER\":\"otlp\",\"OTEL_LOGS_EXPORTER\":\"otlp\",\"OTEL_EXPORTER_OTLP_PROTOCOL\":\"http/json\",\"OTEL_EXPORTER_OTLP_ENDPOINT\":\"http://localhost:4318\",\"OTEL_RESOURCE_ATTRIBUTES\":\"kensai.arm=fixed,kensai.run_id=d3dc3e2b-3c23-489a-9dda-170ee70a9507,kensai.project=widgetco,kensai.skill=development-specs\"}}"
+    },
+    {
+      "id": "print-a-value-with-a-space",
+      "kind": "print",
+      "labels": [
+        "skill=s",
+        "model=a b"
+      ],
+      "endpoint_file": "ep",
+      "environment": {
+        "INSTRUMENT_RUN_ENDPOINT_FILE": "ep",
+        "INSTRUMENT_RUN_ARM": "fixed"
+      },
+      "files_before": {
+        "ep": {
+          "text": "http://localhost:4318\n"
+        }
+      },
+      "printed": "          (kensai.model 'a b' contains a character OTEL_RESOURCE_ATTRIBUTES cannot carry — not attached)\n          Telemetry:    kensai.arm=fixed,kensai.run_id=71700580-56e0-4cb6-8b19-3c6b855721da,kensai.skill=s → http://localhost:4318\n",
+      "settings": "{\"env\":{\"CLAUDE_CODE_ENABLE_TELEMETRY\":\"1\",\"OTEL_METRICS_EXPORTER\":\"otlp\",\"OTEL_LOGS_EXPORTER\":\"otlp\",\"OTEL_EXPORTER_OTLP_PROTOCOL\":\"http/json\",\"OTEL_EXPORTER_OTLP_ENDPOINT\":\"http://localhost:4318\",\"OTEL_RESOURCE_ATTRIBUTES\":\"kensai.arm=fixed,kensai.run_id=71700580-56e0-4cb6-8b19-3c6b855721da,kensai.skill=s\"}}"
+    },
+    {
+      "id": "print-a-value-with-a-comma",
+      "kind": "print",
+      "labels": [
+        "skill=s",
+        "model=a,b"
+      ],
+      "endpoint_file": "ep",
+      "environment": {
+        "INSTRUMENT_RUN_ENDPOINT_FILE": "ep",
+        "INSTRUMENT_RUN_ARM": "fixed"
+      },
+      "files_before": {
+        "ep": {
+          "text": "http://localhost:4318\n"
+        }
+      },
+      "printed": "          (kensai.model 'a,b' contains a character OTEL_RESOURCE_ATTRIBUTES cannot carry — not attached)\n          Telemetry:    kensai.arm=fixed,kensai.run_id=85dcd7a9-bab3-4045-8b5f-87cfe915abe4,kensai.skill=s → http://localhost:4318\n",
+      "settings": "{\"env\":{\"CLAUDE_CODE_ENABLE_TELEMETRY\":\"1\",\"OTEL_METRICS_EXPORTER\":\"otlp\",\"OTEL_LOGS_EXPORTER\":\"otlp\",\"OTEL_EXPORTER_OTLP_PROTOCOL\":\"http/json\",\"OTEL_EXPORTER_OTLP_ENDPOINT\":\"http://localhost:4318\",\"OTEL_RESOURCE_ATTRIBUTES\":\"kensai.arm=fixed,kensai.run_id=85dcd7a9-bab3-4045-8b5f-87cfe915abe4,kensai.skill=s\"}}"
+    },
+    {
+      "id": "print-a-value-with-a-semicolon",
+      "kind": "print",
+      "labels": [
+        "skill=s",
+        "model=a;b"
+      ],
+      "endpoint_file": "ep",
+      "environment": {
+        "INSTRUMENT_RUN_ENDPOINT_FILE": "ep",
+        "INSTRUMENT_RUN_ARM": "fixed"
+      },
+      "files_before": {
+        "ep": {
+          "text": "http://localhost:4318\n"
+        }
+      },
+      "printed": "          (kensai.model 'a;b' contains a character OTEL_RESOURCE_ATTRIBUTES cannot carry — not attached)\n          Telemetry:    kensai.arm=fixed,kensai.run_id=34ddcf35-dfa3-4af3-b27e-0f49ffcb494c,kensai.skill=s → http://localhost:4318\n",
+      "settings": "{\"env\":{\"CLAUDE_CODE_ENABLE_TELEMETRY\":\"1\",\"OTEL_METRICS_EXPORTER\":\"otlp\",\"OTEL_LOGS_EXPORTER\":\"otlp\",\"OTEL_EXPORTER_OTLP_PROTOCOL\":\"http/json\",\"OTEL_EXPORTER_OTLP_ENDPOINT\":\"http://localhost:4318\",\"OTEL_RESOURCE_ATTRIBUTES\":\"kensai.arm=fixed,kensai.run_id=34ddcf35-dfa3-4af3-b27e-0f49ffcb494c,kensai.skill=s\"}}"
+    },
+    {
+      "id": "print-a-value-with-a-backslash",
+      "kind": "print",
+      "labels": [
+        "skill=s",
+        "model=a\\b"
+      ],
+      "endpoint_file": "ep",
+      "environment": {
+        "INSTRUMENT_RUN_ENDPOINT_FILE": "ep",
+        "INSTRUMENT_RUN_ARM": "fixed"
+      },
+      "files_before": {
+        "ep": {
+          "text": "http://localhost:4318\n"
+        }
+      },
+      "printed": "          (kensai.model 'a\\b' contains a character OTEL_RESOURCE_ATTRIBUTES cannot carry — not attached)\n          Telemetry:    kensai.arm=fixed,kensai.run_id=8bfb8ea3-3c92-4b0e-87f8-97e999aacd66,kensai.skill=s → http://localhost:4318\n",
+      "settings": "{\"env\":{\"CLAUDE_CODE_ENABLE_TELEMETRY\":\"1\",\"OTEL_METRICS_EXPORTER\":\"otlp\",\"OTEL_LOGS_EXPORTER\":\"otlp\",\"OTEL_EXPORTER_OTLP_PROTOCOL\":\"http/json\",\"OTEL_EXPORTER_OTLP_ENDPOINT\":\"http://localhost:4318\",\"OTEL_RESOURCE_ATTRIBUTES\":\"kensai.arm=fixed,kensai.run_id=8bfb8ea3-3c92-4b0e-87f8-97e999aacd66,kensai.skill=s\"}}"
+    },
+    {
+      "id": "print-a-value-with-an-equals-sign",
+      "kind": "print",
+      "labels": [
+        "skill=s",
+        "model=a=b"
+      ],
+      "endpoint_file": "ep",
+      "environment": {
+        "INSTRUMENT_RUN_ENDPOINT_FILE": "ep",
+        "INSTRUMENT_RUN_ARM": "fixed"
+      },
+      "files_before": {
+        "ep": {
+          "text": "http://localhost:4318\n"
+        }
+      },
+      "printed": "          (kensai.model 'a=b' contains a character OTEL_RESOURCE_ATTRIBUTES cannot carry — not attached)\n          Telemetry:    kensai.arm=fixed,kensai.run_id=ab459f17-9682-47b8-8d57-68d03a5b340c,kensai.skill=s → http://localhost:4318\n",
+      "settings": "{\"env\":{\"CLAUDE_CODE_ENABLE_TELEMETRY\":\"1\",\"OTEL_METRICS_EXPORTER\":\"otlp\",\"OTEL_LOGS_EXPORTER\":\"otlp\",\"OTEL_EXPORTER_OTLP_PROTOCOL\":\"http/json\",\"OTEL_EXPORTER_OTLP_ENDPOINT\":\"http://localhost:4318\",\"OTEL_RESOURCE_ATTRIBUTES\":\"kensai.arm=fixed,kensai.run_id=ab459f17-9682-47b8-8d57-68d03a5b340c,kensai.skill=s\"}}"
+    },
+    {
+      "id": "print-a-value-with-a-double-quote",
+      "kind": "print",
+      "labels": [
+        "skill=s",
+        "effort=x\"y"
+      ],
+      "endpoint_file": "ep",
+      "environment": {
+        "INSTRUMENT_RUN_ENDPOINT_FILE": "ep",
+        "INSTRUMENT_RUN_ARM": "fixed"
+      },
+      "files_before": {
+        "ep": {
+          "text": "http://localhost:4318\n"
+        }
+      },
+      "printed": "          (kensai.effort 'x\"y' contains a character OTEL_RESOURCE_ATTRIBUTES cannot carry — not attached)\n          Telemetry:    kensai.arm=fixed,kensai.run_id=5db1718f-07a2-4f6c-b75c-e268a102a420,kensai.skill=s → http://localhost:4318\n",
+      "settings": "{\"env\":{\"CLAUDE_CODE_ENABLE_TELEMETRY\":\"1\",\"OTEL_METRICS_EXPORTER\":\"otlp\",\"OTEL_LOGS_EXPORTER\":\"otlp\",\"OTEL_EXPORTER_OTLP_PROTOCOL\":\"http/json\",\"OTEL_EXPORTER_OTLP_ENDPOINT\":\"http://localhost:4318\",\"OTEL_RESOURCE_ATTRIBUTES\":\"kensai.arm=fixed,kensai.run_id=5db1718f-07a2-4f6c-b75c-e268a102a420,kensai.skill=s\"}}"
+    },
+    {
+      "id": "print-a-non-ascii-value",
+      "kind": "print",
+      "labels": [
+        "skill=s",
+        "source=café"
+      ],
+      "endpoint_file": "ep",
+      "environment": {
+        "INSTRUMENT_RUN_ENDPOINT_FILE": "ep",
+        "INSTRUMENT_RUN_ARM": "fixed"
+      },
+      "files_before": {
+        "ep": {
+          "text": "http://localhost:4318\n"
+        }
+      },
+      "printed": "          Telemetry:    kensai.arm=fixed,kensai.run_id=ed375bed-d11f-427f-b88b-a1069e6069fe,kensai.skill=s,kensai.source=café → http://localhost:4318\n",
+      "settings": "{\"env\":{\"CLAUDE_CODE_ENABLE_TELEMETRY\":\"1\",\"OTEL_METRICS_EXPORTER\":\"otlp\",\"OTEL_LOGS_EXPORTER\":\"otlp\",\"OTEL_EXPORTER_OTLP_PROTOCOL\":\"http/json\",\"OTEL_EXPORTER_OTLP_ENDPOINT\":\"http://localhost:4318\",\"OTEL_RESOURCE_ATTRIBUTES\":\"kensai.arm=fixed,kensai.run_id=ed375bed-d11f-427f-b88b-a1069e6069fe,kensai.skill=s,kensai.source=caf\\u00e9\"}}"
+    },
+    {
+      "id": "print-a-value-beyond-the-basic-plane",
+      "kind": "print",
+      "labels": [
+        "skill=s",
+        "source=🙂"
+      ],
+      "endpoint_file": "ep",
+      "environment": {
+        "INSTRUMENT_RUN_ENDPOINT_FILE": "ep",
+        "INSTRUMENT_RUN_ARM": "fixed"
+      },
+      "files_before": {
+        "ep": {
+          "text": "http://localhost:4318\n"
+        }
+      },
+      "printed": "          Telemetry:    kensai.arm=fixed,kensai.run_id=4957e691-c930-43ea-8e85-6cb5b0e92ae8,kensai.skill=s,kensai.source=🙂 → http://localhost:4318\n",
+      "settings": "{\"env\":{\"CLAUDE_CODE_ENABLE_TELEMETRY\":\"1\",\"OTEL_METRICS_EXPORTER\":\"otlp\",\"OTEL_LOGS_EXPORTER\":\"otlp\",\"OTEL_EXPORTER_OTLP_PROTOCOL\":\"http/json\",\"OTEL_EXPORTER_OTLP_ENDPOINT\":\"http://localhost:4318\",\"OTEL_RESOURCE_ATTRIBUTES\":\"kensai.arm=fixed,kensai.run_id=4957e691-c930-43ea-8e85-6cb5b0e92ae8,kensai.skill=s,kensai.source=\\ud83d\\ude42\"}}"
+    },
+    {
+      "id": "print-an-empty-value",
+      "kind": "print",
+      "labels": [
+        "skill=s",
+        "document="
+      ],
+      "endpoint_file": "ep",
+      "environment": {
+        "INSTRUMENT_RUN_ENDPOINT_FILE": "ep",
+        "INSTRUMENT_RUN_ARM": "fixed"
+      },
+      "files_before": {
+        "ep": {
+          "text": "http://localhost:4318\n"
+        }
+      },
+      "printed": "          Telemetry:    kensai.arm=fixed,kensai.run_id=7a5a832b-46e9-48df-b86c-08e77bc643df,kensai.skill=s → http://localhost:4318\n",
+      "settings": "{\"env\":{\"CLAUDE_CODE_ENABLE_TELEMETRY\":\"1\",\"OTEL_METRICS_EXPORTER\":\"otlp\",\"OTEL_LOGS_EXPORTER\":\"otlp\",\"OTEL_EXPORTER_OTLP_PROTOCOL\":\"http/json\",\"OTEL_EXPORTER_OTLP_ENDPOINT\":\"http://localhost:4318\",\"OTEL_RESOURCE_ATTRIBUTES\":\"kensai.arm=fixed,kensai.run_id=7a5a832b-46e9-48df-b86c-08e77bc643df,kensai.skill=s\"}}"
+    },
+    {
+      "id": "print-with-an-absent-endpoint-file",
+      "kind": "print",
+      "labels": [
+        "skill=s"
+      ],
+      "endpoint_file": "ep",
+      "environment": {
+        "INSTRUMENT_RUN_ENDPOINT_FILE": "ep",
+        "INSTRUMENT_RUN_ARM": "fixed"
+      },
+      "files_before": {},
+      "printed": "          (no published telemetry endpoint at ep — run uninstrumented)\n",
+      "settings": null
+    },
+    {
+      "id": "print-with-a-malformed-endpoint-file",
+      "kind": "print",
+      "labels": [
+        "skill=s"
+      ],
+      "endpoint_file": "ep",
+      "environment": {
+        "INSTRUMENT_RUN_ENDPOINT_FILE": "ep",
+        "INSTRUMENT_RUN_ARM": "fixed"
+      },
+      "files_before": {
+        "ep": {
+          "text": "not a url\n"
+        }
+      },
+      "printed": "          (telemetry endpoint at ep is unreadable or malformed — run uninstrumented)\n",
+      "settings": null
+    },
+    {
+      "id": "print-with-a-non-loopback-endpoint-file",
+      "kind": "print",
+      "labels": [
+        "skill=s"
+      ],
+      "endpoint_file": "ep",
+      "environment": {
+        "INSTRUMENT_RUN_ENDPOINT_FILE": "ep",
+        "INSTRUMENT_RUN_ARM": "fixed"
+      },
+      "files_before": {
+        "ep": {
+          "text": "http://example.com:4318\n"
+        }
+      },
+      "printed": "          (telemetry endpoint at ep is not on this machine (loopback only) — run uninstrumented)\n",
+      "settings": null
+    }
+  ]
+}

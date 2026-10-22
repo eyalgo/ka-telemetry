@@ -1,0 +1,41 @@
+[
+  {
+    "kind": "background",
+    "sessionId": "a839285c-263f-40a6-8801-71f49d00cc68",
+    "name": "listed-and-named",
+    "cwd": "/work/example",
+    "state": "completed",
+    "startedAt": "2026-10-04T11:12:51.000Z"
+  },
+  {
+    "kind": "background",
+    "sessionId": "15b8016a-f529-44fe-b6ea-1013fea8a4a8",
+    "name": "listed-only",
+    "cwd": "/work/example",
+    "state": "completed",
+    "startedAt": "2026-10-05T09:00:00.000Z"
+  },
+  {
+    "kind": "background",
+    "sessionId": "7ef055ef-5823-4b0d-845c-efc5b4fdab28",
+    "name": "listed-no-usage",
+    "cwd": "/work/example",
+    "state": "completed",
+    "startedAt": "2026-10-06T09:00:00.000Z"
+  },
+  {
+    "kind": "interactive",
+    "sessionId": "3b26d16d-bf5b-4b78-84e3-aaa145e02cbf",
+    "name": "interactive-row",
+    "cwd": "/work/example",
+    "state": "running",
+    "startedAt": "2026-10-07T09:00:00.000Z"
+  },
+  {
+    "kind": "background",
+    "name": "no-session-row",
+    "cwd": "/work/example",
+    "state": "failed",
+    "startedAt": "2026-10-08T09:00:00.000Z"
+  }
+]

@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=77,<90"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ka-telemetry"
+version = "0.1.0"
+description = "Receives the telemetry stream Claude Code can send, reads the transcripts it keeps on this machine, and reports the tokens they record."
+readme = "README.md"
+authors = [{ name = "Eyal Golan" }]
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+dependencies = []
+keywords = ["claude-code", "telemetry", "opentelemetry", "observability", "tokens"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: System :: Monitoring",
+]
+
+[project.urls]
+Homepage = "https://github.com/eyalgo/ka-telemetry"
+Source = "https://github.com/eyalgo/ka-telemetry"
+Issues = "https://github.com/eyalgo/ka-telemetry/issues"
+Changelog = "https://github.com/eyalgo/ka-telemetry/blob/main/RELEASE_NOTES.md"
+"Built by" = "https://github.com/eyalgo/kensaiapp"
+
+[project.scripts]
+ka-telemetry = "ka_telemetry.cli:main"
+
+[tool.setuptools]
+# Only the import package is installed; tests/ stay out of the artifact.
+packages = ["ka_telemetry"]
+
+[tool.pytest.ini_options]
+# Puts the product root on sys.path, so `pytest tests/` runs from a checkout with nothing installed.
+pythonpath = ["."]
+testpaths = ["tests"]

@@ -1,0 +1,202 @@
+{
+  "population": "Population: background runs only (rows with kind != \"interactive\"), and \u2014 with --run-logs \u2014 every claude --print run whose run log names its session.",
+  "span": "Span: wall-clock time from the first to the last model response counted for the run or step, not from when it started; one response reads 0s, and n/a means no counted response carried a readable time.",
+  "coverage": {
+    "read": 10,
+    "unreadable": 1,
+    "total": 11,
+    "unreadable_ids": [
+      "6c7fc6fe-ddab-43bc-b93b-4d6fa28e81d2"
+    ],
+    "dropped_no_session": 1
+  },
+  "rows": [
+    {
+      "session_id": "a839285c-263f-40a6-8801-71f49d00cc68",
+      "name": "listed-and-named",
+      "cwd": "/work/example",
+      "state": "completed",
+      "started_at": "2026-10-04T11:12:51.000Z",
+      "span_seconds": 15.544,
+      "spend": {
+        "claude-sonnet-5-5": {
+          "input": 10,
+          "output": 1557,
+          "thinking": 34,
+          "cache_read": 131826,
+          "cache_write_1h": 27067,
+          "cache_write_5m": 0
+        }
+      }
+    },
+    {
+      "session_id": "15b8016a-f529-44fe-b6ea-1013fea8a4a8",
+      "name": "listed-only",
+      "cwd": "/work/example",
+      "state": "completed",
+      "started_at": "2026-10-05T09:00:00.000Z",
+      "span_seconds": 0.0,
+      "spend": {
+        "claude-haiku-4-5-20251001": {
+          "input": 10,
+          "output": 98,
+          "thinking": 84,
+          "cache_read": 23912,
+          "cache_write_1h": 0,
+          "cache_write_5m": 0
+        }
+      }
+    },
+    {
+      "session_id": "7ef055ef-5823-4b0d-845c-efc5b4fdab28",
+      "name": "listed-no-usage",
+      "cwd": "/work/example",
+      "state": "completed",
+      "started_at": "2026-10-06T09:00:00.000Z",
+      "span_seconds": null,
+      "spend": {}
+    },
+    {
+      "session_id": "b2417b63-ba0f-449e-9683-d06b266a2f07",
+      "name": "claude-development-code-integrity-20261005-130042-34867",
+      "cwd": "/work/example",
+      "state": "completed",
+      "started_at": null,
+      "span_seconds": 9.488,
+      "spend": {
+        "claude-opus-5-5": {
+          "input": 6,
+          "output": 877,
+          "thinking": 84,
+          "cache_read": 65021,
+          "cache_write_1h": 34370,
+          "cache_write_5m": 0
+        },
+        "<synthetic>": {
+          "input": 0,
+          "output": 0,
+          "thinking": null,
+          "cache_read": 0,
+          "cache_write_1h": 0,
+          "cache_write_5m": 0
+        }
+      }
+    },
+    {
+      "session_id": "829aeb0f-3668-4c2f-bcf8-60af7d85f353",
+      "name": "claude-development-specs-20261010-190159-3917",
+      "cwd": "/work/example",
+      "state": "completed",
+      "started_at": null,
+      "span_seconds": 10.6,
+      "spend": {
+        "claude-opus-5-5": {
+          "input": 8,
+          "output": 1087,
+          "thinking": 128,
+          "cache_read": 94890,
+          "cache_write_1h": 28573,
+          "cache_write_5m": 21740
+        },
+        "<synthetic>": {
+          "input": 0,
+          "output": 0,
+          "thinking": null,
+          "cache_read": 0,
+          "cache_write_1h": 0,
+          "cache_write_5m": 0
+        }
+      }
+    },
+    {
+      "session_id": "c72143c3-f1a7-4e9e-a6b2-366fe1837a6a",
+      "name": "claude-nemawashi-unpick-20261007-005605-97601",
+      "cwd": "/work/example",
+      "state": "completed",
+      "started_at": null,
+      "span_seconds": 21.345,
+      "spend": {
+        "claude-opus-5-5": {
+          "input": 10,
+          "output": 2033,
+          "thinking": 132,
+          "cache_read": 172435,
+          "cache_write_1h": 39831,
+          "cache_write_5m": 0
+        }
+      }
+    },
+    {
+      "session_id": "fac96b52-a71e-45e1-bec2-aa7a00d8b2a6",
+      "name": "claude-self-answer-tracker17-SDD-20261006-152522-33858-3",
+      "cwd": "/work/example",
+      "state": "completed",
+      "started_at": null,
+      "span_seconds": 0.0,
+      "spend": {
+        "<synthetic>": {
+          "input": 0,
+          "output": 0,
+          "thinking": null,
+          "cache_read": 0,
+          "cache_write_1h": 0,
+          "cache_write_5m": 0
+        }
+      }
+    },
+    {
+      "session_id": "fac96b52-a71e-45e1-bec2-aa7a00d8b2a6",
+      "name": "claude-self-answer-tracker17-SDD-20261006-152522-33858-completion",
+      "cwd": "/work/example",
+      "state": "completed",
+      "started_at": null,
+      "span_seconds": 0.0,
+      "spend": {
+        "<synthetic>": {
+          "input": 0,
+          "output": 0,
+          "thinking": null,
+          "cache_read": 0,
+          "cache_write_1h": 0,
+          "cache_write_5m": 0
+        }
+      }
+    },
+    {
+      "session_id": "f727de4b-eb69-446a-989b-493cb10e2e4f",
+      "name": "claude-self-answer-tracker17-SDD-20261006-195517-66728-2",
+      "cwd": "/work/example",
+      "state": "completed",
+      "started_at": null,
+      "span_seconds": 641.067,
+      "spend": {
+        "claude-fable-5-1": {
+          "input": 22,
+          "output": 58079,
+          "thinking": 52278,
+          "cache_read": 1378203,
+          "cache_write_1h": 249958,
+          "cache_write_5m": 0
+        }
+      }
+    },
+    {
+      "session_id": "f727de4b-eb69-446a-989b-493cb10e2e4f",
+      "name": "claude-self-answer-tracker17-SDD-20261006-195517-66728-completion",
+      "cwd": "/work/example",
+      "state": "completed",
+      "started_at": null,
+      "span_seconds": 641.067,
+      "spend": {
+        "claude-fable-5-1": {
+          "input": 22,
+          "output": 58079,
+          "thinking": 52278,
+          "cache_read": 1378203,
+          "cache_write_1h": 249958,
+          "cache_write_5m": 0
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,185 @@
+{
+  "source_commits": {
+    "copy_commit": "e2e4643c8941e7bb5885b4cbe79f09d1a7869373",
+    "dev_revision": "174efe933ddf3810689634f06287da8801f0dbd4",
+    "oracle_script": "agent_usage.py at the copy commit",
+    "oracle_blob": "58e5861f255b3bcb6755b8de10dfefdb048874b0"
+  },
+  "source": "~/.kensaiapp/telemetry/logs.jsonl and metrics.jsonl on the machine of dev's receiver, read 2026-10-12",
+  "sessions": [
+    {
+      "session_id": "83a3a897-661c-46fa-a2be-a94d37f013e1",
+      "why": "labelled, arm two-arms-inline, within 1%",
+      "source_log_lines": [
+        2210,
+        2213
+      ],
+      "source_metric_lines": [
+        597
+      ]
+    },
+    {
+      "session_id": "56258bcf-fe22-4a20-aace-46d5dd412ec7",
+      "why": "labelled, arm two-arms-inline, within 1%",
+      "source_log_lines": [
+        2224,
+        2225
+      ],
+      "source_metric_lines": [
+        600
+      ]
+    },
+    {
+      "session_id": "4d134142-c03d-4e8c-a5e7-c51658727f35",
+      "why": "labelled, arm two-arms-subagent, subagent_completed, within 1%",
+      "source_log_lines": [
+        2216,
+        2218,
+        2222
+      ],
+      "source_metric_lines": [
+        599
+      ]
+    },
+    {
+      "session_id": "e0fc17f8-99f6-4206-a895-fcde68af74da",
+      "why": "labelled, arm two-arms-subagent, subagent_completed, within 1%",
+      "source_log_lines": [
+        2227,
+        2228,
+        2231
+      ],
+      "source_metric_lines": [
+        601
+      ]
+    },
+    {
+      "session_id": "ee5d2a51-f34e-42e0-b38b-fa8dd8c5b593",
+      "why": "labelled, outside 1%",
+      "source_log_lines": [
+        53693,
+        53694,
+        53695,
+        53696,
+        53697,
+        53698,
+        53699,
+        53700,
+        53701,
+        53702,
+        53706,
+        53707
+      ],
+      "source_metric_lines": [
+        14066
+      ]
+    },
+    {
+      "session_id": "ddb179fa-fcdf-40fc-8fd0-8ca1bbc0f9d6",
+      "why": "unlabelled, subagent_completed, within 1%",
+      "source_log_lines": [
+        290,
+        291
+      ],
+      "source_metric_lines": [
+        65
+      ]
+    },
+    {
+      "session_id": "6547733b-af89-40a8-a524-2df28af94cae",
+      "why": "unlabelled, within 1%",
+      "source_log_lines": [
+        295
+      ],
+      "source_metric_lines": [
+        68
+      ]
+    },
+    {
+      "session_id": "7931ae7c-d999-4286-b091-261680002258",
+      "why": "unlabelled, no metric export",
+      "source_log_lines": [
+        10
+      ],
+      "source_metric_lines": []
+    }
+  ],
+  "source_log_lines_kept": [
+    10,
+    290,
+    291,
+    295,
+    2210,
+    2213,
+    2216,
+    2218,
+    2222,
+    2224,
+    2225,
+    2227,
+    2228,
+    2231,
+    53693,
+    53694,
+    53695,
+    53696,
+    53697,
+    53698,
+    53699,
+    53700,
+    53701,
+    53702,
+    53706,
+    53707
+  ],
+  "source_metric_lines_kept": [
+    65,
+    68,
+    597,
+    599,
+    600,
+    601,
+    14066
+  ],
+  "unreadable_line": {
+    "source_log_line": 289,
+    "why": "the receiver's own record of an export it had nothing to store: its body is empty, so the reader skips and counts it"
+  },
+  "reduction_policy": [
+    "Lines are kept in their recorded order; a log line is kept when it holds an api_request or subagent_completed record of a chosen session, and a metric line when it holds a claude_code.cost.usage data point of one.",
+    "Within a kept line only the records of chosen sessions stay, and each log record keeps only: event.name, session.id, workflow.run_id, query_source, agent.name, model, input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens, cost_usd, duration_ms, agent_type, total_tool_uses and every kensai.* attribute, each with its recorded value object.",
+    "A resource keeps only its kensai.* attributes. A metric keeps its name and, per data point, asDouble or asInt and its session.id attribute. Each line keeps its signal, received_at and body envelope.",
+    "The one unreadable line is kept whole: it is the receiver's record of an empty export and carries no address."
+  ],
+  "comparison": {
+    "attr": "kensai.arm",
+    "a": "two-arms-inline",
+    "b": "two-arms-subagent"
+  },
+  "oracle_commands": [
+    {
+      "output": "expected/agents.txt",
+      "command": "python3 agent_usage.py --dir <data set>"
+    },
+    {
+      "output": "expected/agents.json",
+      "command": "python3 agent_usage.py --dir <data set> --json"
+    },
+    {
+      "output": "expected/compare.txt",
+      "command": "python3 agent_usage.py --dir <data set> --compare kensai.arm two-arms-inline two-arms-subagent"
+    },
+    {
+      "output": "expected/compare.json",
+      "command": "python3 agent_usage.py --dir <data set> --json --compare kensai.arm two-arms-inline two-arms-subagent"
+    }
+  ],
+  "hashes": {
+    "logs.jsonl": "eb8e9f75827e1f317411d9ad806f8d41dda23b97e02dc5c8514b8836776aed17",
+    "metrics.jsonl": "a3f62df89e0e063766be39c08aa1eacc00805e226b9994212c0a7a6660f4ac2f",
+    "expected/agents.txt": "bac6c4b88adaa6230a06547a657e231a01354b21265b324eb79fa83b8ebef3f2",
+    "expected/agents.json": "2f0e399a39f27d422fd066954d411731121a51e7939aba8ff4ca6c47ea4db703",
+    "expected/compare.txt": "5cec57465c892a4a3594ff1d15e272737841f819ef2007994056d84b004f9bd0",
+    "expected/compare.json": "6878a5c8c6308187c7dc612f640681682b026a4c61cdaf29680737c6adcad7e6"
+  }
+}

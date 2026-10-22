@@ -1,0 +1,189 @@
+{
+  "runs": [
+    {
+      "case": "pipx-1.11.1-on-3.9-default-3.9",
+      "cp_620_case": "pipx-on-python-3.9",
+      "preparation_failure": false,
+      "captured": "2026-10-21",
+      "pipx": {
+        "version": "1.11.1",
+        "executable": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/pipx-1.11.1-on-3.9-default-3.9/tooling/bin/pipx"
+      },
+      "pipx_python": {
+        "path": "/usr/bin/python3",
+        "version": "3.9.6"
+      },
+      "default_install_python": {
+        "path": "/usr/bin/python3",
+        "version": "3.9.6"
+      },
+      "argv": [
+        "pipx",
+        "install",
+        "ka-telemetry"
+      ],
+      "pip_backend": null,
+      "product_commit": "f2b7a6e5a89f3faea60b8c1a0a0a855f720d5eb0",
+      "wheel": {
+        "filename": "ka_telemetry-0.1.0-py3-none-any.whl",
+        "sha256": "ff39b31bc7c46e76fd888a87bee767966064a9b312f0c66cc0f076a788e45833"
+      },
+      "scratch_root": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/pipx-1.11.1-on-3.9-default-3.9",
+      "settings": {
+        "PIPX_HOME": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/pipx-1.11.1-on-3.9-default-3.9/pipx/home",
+        "PIPX_BIN_DIR": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/pipx-1.11.1-on-3.9-default-3.9/pipx/bin",
+        "PIPX_MAN_DIR": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/pipx-1.11.1-on-3.9-default-3.9/pipx/man",
+        "PIPX_SHARED_LIBS": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/pipx-1.11.1-on-3.9-default-3.9/pipx/shared",
+        "PIPX_COMPLETION_DIR": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/pipx-1.11.1-on-3.9-default-3.9/pipx/completions",
+        "PIPX_DEFAULT_PYTHON": "/usr/bin/python3",
+        "HOME": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/pipx-1.11.1-on-3.9-default-3.9/home",
+        "TMPDIR": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/pipx-1.11.1-on-3.9-default-3.9/tmp",
+        "PIP_NO_INDEX": "1",
+        "PIP_FIND_LINKS": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/pipx-1.11.1-on-3.9-default-3.9/wheels",
+        "PIP_NO_CACHE_DIR": "1",
+        "PIP_PROXY": "http://127.0.0.1:1",
+        "PIPX_DISABLE_SHARED_LIBS_AUTO_UPGRADE": "1",
+        "PIPX_FETCH_PYTHON": "never"
+      },
+      "exit_status": 1,
+      "stdout": "\n",
+      "stderr": "creating virtual environment...\ninstalling ka-telemetry...\nFatal error from pip prevented installation. Full pip output in file:\n    /private/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/pipx-1.11.1-on-3.9-default-3.9/pipx/home/logs/cmd_2026-10-21_10.46.53_pip_errors.log\n\nSome possibly relevant errors from pip install:\n    ERROR: Package 'ka-telemetry' requires a different Python: 3.9.6 not in '>=3.11'\nError installing ka-telemetry.\n",
+      "installed_state": {
+        "present": false,
+        "version": null,
+        "python": null,
+        "working": null,
+        "command": "pipx list --json",
+        "output": "{\n    \"pipx_spec_version\": \"0.1\",\n    \"venvs\": {}\n}\n"
+      }
+    },
+    {
+      "case": "pipx-1.17.12-on-3.10-default-3.10",
+      "cp_620_case": "pipx-on-python-older-than-3.11",
+      "preparation_failure": false,
+      "captured": "2026-10-21",
+      "pipx": {
+        "version": "1.17.12",
+        "executable": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/pipx-1.17.12-on-3.10-default-3.10/tooling/bin/pipx"
+      },
+      "pipx_python": {
+        "path": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/uv-python/cpython-3.10.20-macos-aarch64-none/bin/python3.10",
+        "version": "3.10.20"
+      },
+      "default_install_python": {
+        "path": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/uv-python/cpython-3.10.20-macos-aarch64-none/bin/python3.10",
+        "version": "3.10.20"
+      },
+      "argv": [
+        "pipx",
+        "install",
+        "ka-telemetry"
+      ],
+      "pip_backend": "pip",
+      "product_commit": "f2b7a6e5a89f3faea60b8c1a0a0a855f720d5eb0",
+      "wheel": {
+        "filename": "ka_telemetry-0.1.0-py3-none-any.whl",
+        "sha256": "ff39b31bc7c46e76fd888a87bee767966064a9b312f0c66cc0f076a788e45833"
+      },
+      "scratch_root": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/pipx-1.17.12-on-3.10-default-3.10",
+      "settings": {
+        "PIPX_HOME": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/pipx-1.17.12-on-3.10-default-3.10/pipx/home",
+        "PIPX_BIN_DIR": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/pipx-1.17.12-on-3.10-default-3.10/pipx/bin",
+        "PIPX_MAN_DIR": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/pipx-1.17.12-on-3.10-default-3.10/pipx/man",
+        "PIPX_SHARED_LIBS": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/pipx-1.17.12-on-3.10-default-3.10/pipx/shared",
+        "PIPX_COMPLETION_DIR": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/pipx-1.17.12-on-3.10-default-3.10/pipx/completions",
+        "PIPX_DEFAULT_PYTHON": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/uv-python/cpython-3.10.20-macos-aarch64-none/bin/python3.10",
+        "HOME": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/pipx-1.17.12-on-3.10-default-3.10/home",
+        "TMPDIR": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/pipx-1.17.12-on-3.10-default-3.10/tmp",
+        "PIP_NO_INDEX": "1",
+        "PIP_FIND_LINKS": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/pipx-1.17.12-on-3.10-default-3.10/wheels",
+        "PIP_NO_CACHE_DIR": "1",
+        "PIP_PROXY": "http://127.0.0.1:1",
+        "PIPX_DISABLE_SHARED_LIBS_AUTO_UPGRADE": "1",
+        "PIPX_FETCH_PYTHON": "never",
+        "PIPX_DEFAULT_BACKEND": "pip"
+      },
+      "exit_status": 0,
+      "stdout": "This package needs Python >=3.11, so pipx used /opt/homebrew/bin/python3.14.\n  installed package ka-telemetry 0.1.0, installed using Python 3.14.7\n  These apps are now available\n    - ka-telemetry\n",
+      "stderr": "creating virtual environment...\ninstalling ka-telemetry...\nFatal error from pip prevented installation. Full pip output in file:\n    /var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/pipx-1.17.12-on-3.10-default-3.10/pipx/home/logs/cmd_2026-10-21_10.47.01_pip_errors.log\n\nSome possibly relevant errors from pip install:\n    ERROR: Package 'ka-telemetry' requires a different Python: 3.10.20 not in '>=3.11'\ncreating virtual environment...\ninstalling ka-telemetry...\n\u26a0\ufe0f  Note: ka-telemetry was already on your PATH at\n    /Users/user/.local/bin/ka-telemetry\n\u26a0\ufe0f  Note: '/private/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w\n    5op25/pipx-1.17.12-on-3.10-default-3.10/pipx/bin' is not on your PATH\n    environment variable. These apps will not be globally accessible until\n    your PATH is updated. Run `pipx ensurepath` to automatically add it, or\n    manually modify your PATH in your shell's config file (e.g. ~/.bashrc).\ndone! \u2728 \ud83c\udf1f \u2728\n",
+      "installed_state": {
+        "present": true,
+        "version": "0.1.0",
+        "python": "Python 3.14.7",
+        "working": true,
+        "working_check": {
+          "command": "ka-telemetry --help",
+          "exit_status": 0,
+          "stdout": "usage: ka-telemetry [-h] {runs,steps,context,receive,agents,check,turn-on} ...\n\nReads the transcripts Claude Code keeps on this machine and reports the tokens\nthey record: per background run, per workflow step, and the current context\nsize of one transcript. Those three reports show no cost, because ka-telemetry\ncounts tokens and does not price them. It also receives the telemetry Claude\nCode can send as OpenTelemetry over HTTP in JSON, writes it to files on this\nmachine, and reads those files for a per-agent report of tokens, cost and\nduration, and for a totals check that holds each session's request costs\nagainst Claude Code's cost metric. Every cost in those two comes from what\nClaude Code reported; ka-telemetry never computes a cost from tokens.\n\noptions:\n  -h, --help            show this help message and exit\n\ncommands:\n  {runs,steps,context,receive,agents,check,turn-on}\n    runs                tokens used by each background run, and by each run\n                        you name by session id\n    steps               tokens used by each step of a workflow run\n    context             the current context size of one transcript\n    receive             receive the telemetry Claude Code sends and write it\n                        to files on this machine\n    agents              tokens, cost and duration per agent, read from the\n                        received telemetry\n    check               each session's request costs checked against Claude\n                        Code's cost metric\n    turn-on             write the keys that make Claude Code send its\n                        telemetry to the receiver on this machine into a\n                        Claude Code settings file, remove them, or print them\n                        for one run\n\nThis tool sends no telemetry and makes no network call except the ones the job\nyou asked for requires.\n",
+          "stderr": ""
+        },
+        "command": "pipx list --json",
+        "output": "{\n    \"pipx_spec_version\": \"0.1\",\n    \"venvs\": {\n        \"ka-telemetry\": {\n            \"metadata\": {\n                \"backend\": \"pip\",\n                \"environment\": \"ka-telemetry\",\n                \"exposure_enabled\": true,\n                \"injected_packages\": {},\n                \"main_package\": {\n                    \"app_paths\": [\n                        {\n                            \"__Path__\": \"/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/pipx-1.17.12-on-3.10-default-3.10/pipx/home/venvs/ka-telemetry/bin/ka-telemetry\",\n                            \"__type__\": \"Path\"\n                        }\n                    ],\n                    \"app_paths_of_dependencies\": {},\n                    \"apps\": [\n                        \"ka-telemetry\"\n                    ],\n                    \"apps_of_dependencies\": [],\n                    \"completion_paths\": [],\n                    \"completion_paths_of_dependencies\": {},\n                    \"completions\": [],\n                    \"completions_of_dependencies\": [],\n                    \"cooldown_days\": null,\n                    \"expected_apps\": [],\n                    \"include_apps\": true,\n                    \"include_dependencies\": false,\n                    \"include_resources_from\": [],\n                    \"lock_file\": null,\n                    \"man_pages\": [],\n                    \"man_pages_of_dependencies\": [],\n                    \"man_paths\": [],\n                    \"man_paths_of_dependencies\": {},\n                    \"package\": \"ka-telemetry\",\n                    \"package_or_url\": \"ka-telemetry\",\n                    \"package_version\": \"0.1.0\",\n                    \"pinned\": false,\n                    \"pip_args\": [],\n                    \"suffix\": \"\"\n                },\n                \"pipx_metadata_version\": \"0.12\",\n                \"python_version\": \"Python 3.14.7\",\n                \"source_interpreter\": {\n                    \"__Path__\": \"/opt/homebrew/bin/python3.14\",\n                    \"__type__\": \"Path\"\n                },\n                \"venv_args\": []\n            }\n        }\n    }\n}\n"
+      }
+    },
+    {
+      "case": "pipx-1.18.4-on-3.12-default-3.10",
+      "cp_620_case": "pipx-on-3.11-or-later-with-older-default",
+      "preparation_failure": false,
+      "captured": "2026-10-21",
+      "pipx": {
+        "version": "1.18.4",
+        "executable": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/pipx-1.18.4-on-3.12-default-3.10/tooling/bin/pipx"
+      },
+      "pipx_python": {
+        "path": "/Users/user/.local/share/uv/python/cpython-3.12-macos-aarch64-none/bin/python3.12",
+        "version": "3.12.13"
+      },
+      "default_install_python": {
+        "path": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/uv-python/cpython-3.10.20-macos-aarch64-none/bin/python3.10",
+        "version": "3.10.20"
+      },
+      "argv": [
+        "pipx",
+        "install",
+        "ka-telemetry"
+      ],
+      "pip_backend": "pip",
+      "product_commit": "f2b7a6e5a89f3faea60b8c1a0a0a855f720d5eb0",
+      "wheel": {
+        "filename": "ka_telemetry-0.1.0-py3-none-any.whl",
+        "sha256": "ff39b31bc7c46e76fd888a87bee767966064a9b312f0c66cc0f076a788e45833"
+      },
+      "scratch_root": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/pipx-1.18.4-on-3.12-default-3.10",
+      "settings": {
+        "PIPX_HOME": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/pipx-1.18.4-on-3.12-default-3.10/pipx/home",
+        "PIPX_BIN_DIR": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/pipx-1.18.4-on-3.12-default-3.10/pipx/bin",
+        "PIPX_MAN_DIR": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/pipx-1.18.4-on-3.12-default-3.10/pipx/man",
+        "PIPX_SHARED_LIBS": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/pipx-1.18.4-on-3.12-default-3.10/pipx/shared",
+        "PIPX_COMPLETION_DIR": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/pipx-1.18.4-on-3.12-default-3.10/pipx/completions",
+        "PIPX_DEFAULT_PYTHON": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/uv-python/cpython-3.10.20-macos-aarch64-none/bin/python3.10",
+        "HOME": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/pipx-1.18.4-on-3.12-default-3.10/home",
+        "TMPDIR": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/pipx-1.18.4-on-3.12-default-3.10/tmp",
+        "PIP_NO_INDEX": "1",
+        "PIP_FIND_LINKS": "/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/pipx-1.18.4-on-3.12-default-3.10/wheels",
+        "PIP_NO_CACHE_DIR": "1",
+        "PIP_PROXY": "http://127.0.0.1:1",
+        "PIPX_DISABLE_SHARED_LIBS_AUTO_UPGRADE": "1",
+        "PIPX_FETCH_PYTHON": "never",
+        "PIPX_DEFAULT_BACKEND": "pip"
+      },
+      "exit_status": 0,
+      "stdout": "This package needs Python >=3.11, so pipx used /opt/homebrew/bin/python3.14.\n  installed package ka-telemetry 0.1.0, installed using Python 3.14.7\n  These apps are now available\n    - ka-telemetry\n",
+      "stderr": "creating virtual environment...\ninstalling ka-telemetry...\ncreating virtual environment...\ninstalling ka-telemetry...\n\u26a0\ufe0f  Note: ka-telemetry was already on your PATH at\n    /Users/user/.local/bin/ka-telemetry\n\u26a0\ufe0f  Note: '/private/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w\n    5op25/pipx-1.18.4-on-3.12-default-3.10/pipx/bin' is not on your PATH\n    environment variable. These apps will not be globally accessible until\n    your PATH is updated. Run `pipx ensurepath` to automatically add it, or\n    manually modify your PATH in your shell's config file (e.g. ~/.bashrc).\ndone! \u2728 \ud83c\udf1f \u2728\n",
+      "installed_state": {
+        "present": true,
+        "version": "0.1.0",
+        "python": "Python 3.14.7",
+        "working": true,
+        "working_check": {
+          "command": "ka-telemetry --help",
+          "exit_status": 0,
+          "stdout": "usage: ka-telemetry [-h] {runs,steps,context,receive,agents,check,turn-on} ...\n\nReads the transcripts Claude Code keeps on this machine and reports the tokens\nthey record: per background run, per workflow step, and the current context\nsize of one transcript. Those three reports show no cost, because ka-telemetry\ncounts tokens and does not price them. It also receives the telemetry Claude\nCode can send as OpenTelemetry over HTTP in JSON, writes it to files on this\nmachine, and reads those files for a per-agent report of tokens, cost and\nduration, and for a totals check that holds each session's request costs\nagainst Claude Code's cost metric. Every cost in those two comes from what\nClaude Code reported; ka-telemetry never computes a cost from tokens.\n\noptions:\n  -h, --help            show this help message and exit\n\ncommands:\n  {runs,steps,context,receive,agents,check,turn-on}\n    runs                tokens used by each background run, and by each run\n                        you name by session id\n    steps               tokens used by each step of a workflow run\n    context             the current context size of one transcript\n    receive             receive the telemetry Claude Code sends and write it\n                        to files on this machine\n    agents              tokens, cost and duration per agent, read from the\n                        received telemetry\n    check               each session's request costs checked against Claude\n                        Code's cost metric\n    turn-on             write the keys that make Claude Code send its\n                        telemetry to the receiver on this machine into a\n                        Claude Code settings file, remove them, or print them\n                        for one run\n\nThis tool sends no telemetry and makes no network call except the ones the job\nyou asked for requires.\n",
+          "stderr": ""
+        },
+        "command": "pipx list --json",
+        "output": "{\n    \"pipx_spec_version\": \"0.1\",\n    \"venvs\": {\n        \"ka-telemetry\": {\n            \"metadata\": {\n                \"backend\": \"pip\",\n                \"environment\": \"ka-telemetry\",\n                \"exposure_enabled\": true,\n                \"injected_packages\": {},\n                \"main_package\": {\n                    \"app_paths\": [\n                        {\n                            \"__Path__\": \"/var/folders/b1/gnq9xtp11rl848fvq_b0tjqc0000gn/T/ka-cap-51w5op25/pipx-1.18.4-on-3.12-default-3.10/pipx/home/venvs/ka-telemetry/bin/ka-telemetry\",\n                            \"__type__\": \"Path\"\n                        }\n                    ],\n                    \"app_paths_of_dependencies\": {},\n                    \"apps\": [\n                        \"ka-telemetry\"\n                    ],\n                    \"apps_of_dependencies\": [],\n                    \"completion_paths\": [],\n                    \"completion_paths_of_dependencies\": {},\n                    \"completions\": [],\n                    \"completions_of_dependencies\": [],\n                    \"cooldown_days\": null,\n                    \"expected_apps\": [],\n                    \"include_apps\": true,\n                    \"include_dependencies\": false,\n                    \"include_resources_from\": [],\n                    \"lock_file\": null,\n                    \"man_pages\": [],\n                    \"man_pages_of_dependencies\": [],\n                    \"man_paths\": [],\n                    \"man_paths_of_dependencies\": {},\n                    \"package\": \"ka-telemetry\",\n                    \"package_or_url\": \"ka-telemetry\",\n                    \"package_version\": \"0.1.0\",\n                    \"pinned\": false,\n                    \"pip_args\": [],\n                    \"suffix\": \"\"\n                },\n                \"pipx_metadata_version\": \"0.12\",\n                \"python_version\": \"Python 3.14.7\",\n                \"source_interpreter\": {\n                    \"__Path__\": \"/opt/homebrew/bin/python3.14\",\n                    \"__type__\": \"Path\"\n                },\n                \"venv_args\": []\n            }\n        }\n    }\n}\n"
+      }
+    }
+  ]
+}

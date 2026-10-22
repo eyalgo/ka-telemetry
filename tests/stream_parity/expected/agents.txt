@@ -1,0 +1,60 @@
+16 agent row(s), 1 unreadable line(s) skipped.
+  session=ee5d2a51-f34e-42e0-b38b-fa8dd8c5b593 workflow_run_id=None query_source=repl_main_thread agent=None  requests=15  models=claude-opus-5-5  cost_usd=0.950151
+    input=30 output=9311 cache_read=826617 cache_creation=74811 duration_ms=104415
+    kensai: kensai.arm=skill, kensai.chain=change, kensai.instance=example-team, kensai.product=kasanari, kensai.project=kasanari, kensai.role=pm, kensai.run_id=a7facad5-6380-4e10-be0a-13e98a3e31fd, kensai.skill=shukuba-open, kensai.walk_id=17aed005-a28c-47ca-b9de-2209ad2088a1
+  session=ddb179fa-fcdf-40fc-8fd0-8ca1bbc0f9d6 workflow_run_id=None query_source=sdk agent=None  requests=3  models=claude-haiku-4-5-20251001  cost_usd=0.064833
+    input=30 output=670 cache_read=90974 cache_creation=26178 duration_ms=9013
+  session=83a3a897-661c-46fa-a2be-a94d37f013e1 workflow_run_id=None query_source=sdk agent=None  requests=2  models=claude-haiku-4-5-20251001  cost_usd=0.058177
+    input=18 output=1082 cache_read=38952 cache_creation=24427 duration_ms=16089
+    kensai: kensai.arm=two-arms-inline, kensai.run_id=e3e8275c-e7d6-4cdb-88eb-69993d7b135d
+  session=6547733b-af89-40a8-a524-2df28af94cae workflow_run_id=None query_source=repl_main_thread agent=None  requests=1  models=claude-haiku-4-5-20251001  cost_usd=0.051883
+    input=10 output=55 cache_read=27180 cache_creation=24440 duration_ms=1550
+  session=7931ae7c-d999-4286-b091-261680002258 workflow_run_id=None query_source=sdk agent=None  requests=1  models=claude-haiku-4-5-20251001  cost_usd=0.050333
+    input=10 output=42 cache_read=13607 cache_creation=24376 duration_ms=1222
+  session=4d134142-c03d-4e8c-a5e7-c51658727f35 workflow_run_id=None query_source=agent:builtin:Explore agent=Explore  requests=2  models=claude-haiku-4-5-20251001  cost_usd=0.038118
+    input=18 output=1166 cache_read=11073 cache_creation=24930 duration_ms=17133
+    kensai: kensai.arm=two-arms-subagent, kensai.run_id=d9364a4a-db59-4f12-a771-d4cc977af4cd
+  session=e0fc17f8-99f6-4206-a895-fcde68af74da workflow_run_id=None query_source=agent:builtin:Explore agent=Explore  requests=2  models=claude-haiku-4-5-20251001  cost_usd=0.033823
+    input=18 output=576 cache_read=10096 cache_creation=23932 duration_ms=8119
+    kensai: kensai.arm=two-arms-subagent, kensai.run_id=a7989cae-73bd-4cc8-bacf-57dc93000b5f
+  session=4d134142-c03d-4e8c-a5e7-c51658727f35 workflow_run_id=None query_source=sdk agent=None  requests=2  models=claude-haiku-4-5-20251001  cost_usd=0.022715
+    input=18 output=430 cache_read=42987 cache_creation=8124 duration_ms=4592
+    kensai: kensai.arm=two-arms-subagent, kensai.run_id=d9364a4a-db59-4f12-a771-d4cc977af4cd
+  session=ddb179fa-fcdf-40fc-8fd0-8ca1bbc0f9d6 workflow_run_id=None query_source=agent:builtin:Explore agent=Explore  requests=1  models=claude-haiku-4-5-20251001  cost_usd=0.016181
+    input=10 output=77 cache_read=0 cache_creation=12629 duration_ms=1432
+  session=e0fc17f8-99f6-4206-a895-fcde68af74da workflow_run_id=None query_source=sdk agent=None  requests=3  models=claude-haiku-4-5-20251001  cost_usd=0.012605
+    input=28 output=492 cache_read=76746 cache_creation=1221 duration_ms=6255
+    kensai: kensai.arm=two-arms-subagent, kensai.run_id=a7989cae-73bd-4cc8-bacf-57dc93000b5f
+  session=56258bcf-fe22-4a20-aace-46d5dd412ec7 workflow_run_id=None query_source=sdk agent=None  requests=2  models=claude-haiku-4-5-20251001  cost_usd=0.009066
+    input=18 output=325 cache_read=50690 cache_creation=1177 duration_ms=4127
+    kensai: kensai.arm=two-arms-inline, kensai.run_id=66c4d1e4-1dc9-4066-bd7d-bbb4aec79c1e
+  session=6547733b-af89-40a8-a524-2df28af94cae workflow_run_id=None query_source=generate_session_title agent=None  requests=2  models=claude-haiku-4-5-20251001  cost_usd=0.001889
+    input=1794 output=19 cache_read=0 cache_creation=0 duration_ms=2030
+  session=e0fc17f8-99f6-4206-a895-fcde68af74da workflow_run_id=None query_source=generate_session_title agent=None  requests=1  models=claude-haiku-4-5-20251001  cost_usd=0.001056
+    input=976 output=16 cache_read=0 cache_creation=0 duration_ms=895
+    kensai: kensai.arm=two-arms-subagent, kensai.run_id=a7989cae-73bd-4cc8-bacf-57dc93000b5f
+  session=4d134142-c03d-4e8c-a5e7-c51658727f35 workflow_run_id=None query_source=generate_session_title agent=None  requests=1  models=claude-haiku-4-5-20251001  cost_usd=0.001051
+    input=976 output=15 cache_read=0 cache_creation=0 duration_ms=993
+    kensai: kensai.arm=two-arms-subagent, kensai.run_id=d9364a4a-db59-4f12-a771-d4cc977af4cd
+  session=83a3a897-661c-46fa-a2be-a94d37f013e1 workflow_run_id=None query_source=generate_session_title agent=None  requests=1  models=claude-haiku-4-5-20251001  cost_usd=0.001036
+    input=966 output=14 cache_read=0 cache_creation=0 duration_ms=807
+    kensai: kensai.arm=two-arms-inline, kensai.run_id=e3e8275c-e7d6-4cdb-88eb-69993d7b135d
+  session=56258bcf-fe22-4a20-aace-46d5dd412ec7 workflow_run_id=None query_source=generate_session_title agent=None  requests=1  models=claude-haiku-4-5-20251001  cost_usd=0.001036
+    input=966 output=14 cache_read=0 cache_creation=0 duration_ms=725
+    kensai: kensai.arm=two-arms-inline, kensai.run_id=66c4d1e4-1dc9-4066-bd7d-bbb4aec79c1e
+Total cost_usd: 1.313953
+
+subagent_completed counts Agent-tool agents only — a Workflow step's own requests (query_source "agent:builtin:workflow-subagent") emit no subagent_completed record, so this count does not cover them.
+  session=4d134142-c03d-4e8c-a5e7-c51658727f35 agent_type=Explore count=1 duration_ms=17333 total_tool_uses=1
+  session=ddb179fa-fcdf-40fc-8fd0-8ca1bbc0f9d6 agent_type=Explore count=1 duration_ms=1567 total_tool_uses=0
+  session=e0fc17f8-99f6-4206-a895-fcde68af74da agent_type=Explore count=1 duration_ms=8345 total_tool_uses=1
+
+Metrics cross-check (claude_code.cost.usage vs summed cost_usd):
+  session=4d134142-c03d-4e8c-a5e7-c51658727f35  log_cost_usd=0.061883  metric_cost_usd=0.061883
+  session=56258bcf-fe22-4a20-aace-46d5dd412ec7  log_cost_usd=0.010102  metric_cost_usd=0.010102
+  session=6547733b-af89-40a8-a524-2df28af94cae  log_cost_usd=0.053772  metric_cost_usd=0.053772
+  session=7931ae7c-d999-4286-b091-261680002258  log_cost_usd=0.050333  no metric export
+  session=83a3a897-661c-46fa-a2be-a94d37f013e1  log_cost_usd=0.059213  metric_cost_usd=0.059213
+  session=ddb179fa-fcdf-40fc-8fd0-8ca1bbc0f9d6  log_cost_usd=0.081015  metric_cost_usd=0.081015
+  session=e0fc17f8-99f6-4206-a895-fcde68af74da  log_cost_usd=0.047483  metric_cost_usd=0.047483
+  session=ee5d2a51-f34e-42e0-b38b-fa8dd8c5b593  log_cost_usd=0.950151  metric_cost_usd=0.727485  MISMATCH >1%

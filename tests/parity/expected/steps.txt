@@ -1,0 +1,36 @@
+Fallback: an agent whose journal result carries no step (or none this reader could attribute to a producer or an auditor) is grouped by its agentType instead, marked fallback so a reader can tell a step from a name.
+Span: wall-clock time from the first to the last model response counted for the run or step, not from when it started; one response reads 0s, and n/a means no counted response carried a readable time.
+
+wf_ec5e24de-808  session=174d0111-bfa9-4539-92d9-5560e0ab4c36  slug=-home-user-work-demo
+  Coverage: 9 with a step / 1 without / 0 started with no result / 0 agent files with no journal entry at all
+  development-plan (produce)  types=tech-lead  agents=a53ef7efd8c468bad
+    span=113.727s
+    claude-opus-5: input=40 output=415 thinking=0 cache_read=1459608 cache_write_1h=0 cache_write_5m=103692
+  pm [fallback]  types=pm  agents=a85c5919a45174165
+    span=93.63s
+    claude-opus-5: input=26 output=71 cache_read=741398 cache_write_1h=0 cache_write_5m=78011
+  development-code-integrity (produce)  types=senior-engineer  agents=ab58aa559157db106
+    span=366.182s
+    claude-opus-5: input=32 output=218 thinking=0 cache_read=1012546 cache_write_1h=0 cache_write_5m=102593
+  development-specs (audit)  types=kensaiapp-auditor  agents=ac342e357894438af
+    span=215.143s
+    claude-opus-5: input=50 output=856 thinking=0 cache_read=1434647 cache_write_1h=0 cache_write_5m=74477
+  development-design (produce)  types=architect  agents=ad648eb1f468fdd44
+    span=118.955s
+    claude-opus-5: input=30 output=46 cache_read=1065692 cache_write_1h=0 cache_write_5m=116529
+  development-implementation (audit)  types=kensaiapp-auditor  agents=adea8139719961545
+    span=177.325s
+    claude-opus-5: input=42 output=580 thinking=0 cache_read=1170088 cache_write_1h=0 cache_write_5m=78427
+  development-specs (produce)  types=product-owner  agents=af246bebab758f705
+    span=144.245s
+    claude-opus-5: input=30 output=62 cache_read=879180 cache_write_1h=0 cache_write_5m=94060
+  development-plan (audit)  types=kensaiapp-auditor  agents=af81dac1517cc2aa3
+    span=286.435s
+    claude-opus-5: input=50 output=920 thinking=0 cache_read=1800479 cache_write_1h=0 cache_write_5m=115476
+  development-implementation (produce)  types=developer  agents=afc6d5e9e874cf67f
+    span=86.566s
+    claude-sonnet-5: input=44 output=505 thinking=0 cache_read=2094533 cache_write_1h=0 cache_write_5m=143692
+  development-design (audit)  types=kensaiapp-auditor  agents=aff5cbaa50495ff32
+    span=270.837s
+    claude-opus-5: input=44 output=285 thinking=0 cache_read=1347549 cache_write_1h=0 cache_write_5m=97922
+This report carries no cost, because ka-telemetry never computes a cost from tokens.

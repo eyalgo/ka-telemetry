@@ -1,0 +1,113 @@
+{
+  "dev_commit": "174efe933ddf3810689634f06287da8801f0dbd4",
+  "copy_commit": "e2e4643c8941e7bb5885b4cbe79f09d1a7869373",
+  "selection": "A bounded subset of dev's run logs, enough to exercise each case of CP-19: the logs named in run_logs, in file-name order. The transcripts of 6c7fc6fe-ddab-43bc-b93b-4d6fa28e81d2 are left out on purpose. The listing is curated: its rows carry neutral identity fields and session ids from this set.",
+  "reduction": "Every record is reduced to the fields dev's readers read before any reference output was generated: transcript records keep type, timestamp, message.id, message.model and message.usage (its token classes only), and a transcript is cut after its first 40 usage records, whole responses kept; the transcript with no assistant usage keeps type and timestamp only; journal records keep agentId, type and a result payload's step, status and result, a plain-text payload becoming an empty string; meta sidecars keep agentType and model.",
+  "run_logs": [
+    {
+      "log": "claude-development-code-integrity-20261005-130042-34867.jsonl",
+      "session_id": "b2417b63-ba0f-449e-9683-d06b266a2f07"
+    },
+    {
+      "log": "claude-development-specs-20261010-190159-3917.jsonl",
+      "session_id": "829aeb0f-3668-4c2f-bcf8-60af7d85f353"
+    },
+    {
+      "log": "claude-nemawashi-retire-20261004-111251-48057.jsonl",
+      "session_id": "a839285c-263f-40a6-8801-71f49d00cc68"
+    },
+    {
+      "log": "claude-nemawashi-unpick-20261007-005605-97601.jsonl",
+      "session_id": "c72143c3-f1a7-4e9e-a6b2-366fe1837a6a"
+    },
+    {
+      "log": "claude-self-answer-tracker17-SDD-20261006-152522-33858-3.jsonl",
+      "session_id": "fac96b52-a71e-45e1-bec2-aa7a00d8b2a6"
+    },
+    {
+      "log": "claude-self-answer-tracker17-SDD-20261006-152522-33858-completion.jsonl",
+      "session_id": "fac96b52-a71e-45e1-bec2-aa7a00d8b2a6"
+    },
+    {
+      "log": "claude-self-answer-tracker17-SDD-20261006-195517-66728-2.jsonl",
+      "session_id": "f727de4b-eb69-446a-989b-493cb10e2e4f"
+    },
+    {
+      "log": "claude-self-answer-tracker17-SDD-20261006-195517-66728-completion.jsonl",
+      "session_id": "f727de4b-eb69-446a-989b-493cb10e2e4f"
+    },
+    {
+      "log": "claude-shukuba-open-20261003-191409-84312.jsonl",
+      "session_id": "6c7fc6fe-ddab-43bc-b93b-4d6fa28e81d2"
+    }
+  ],
+  "excluded_run_logs": [
+    "claude-self-answer-tracker17-SDD-20261006-152522-33858-plan.jsonl",
+    "claude-self-answer-tracker17-SDD-20261006-195517-66728-plan.jsonl"
+  ],
+  "commands": [
+    {
+      "output": "expected/runs.txt",
+      "command": "python3 core/tools/run_usage.py --agents-json agents.json --projects-root projects --run-logs logs",
+      "cwd": "a scratch folder holding projects/ and agents.json (both byte-identical to tests/parity/) and logs/ (run logs rebuilt in scratch from the run_logs below, one init event and one result event each; never tracked)",
+      "source": "core/tools of kensaiapp's development repository at dev_commit, exported with git archive into a scratch folder; nothing in dev's checkout was run or edited"
+    },
+    {
+      "output": "expected/runs.json",
+      "command": "python3 core/tools/run_usage.py --agents-json agents.json --projects-root projects --run-logs logs --json",
+      "cwd": "a scratch folder holding projects/ and agents.json (both byte-identical to tests/parity/) and logs/ (run logs rebuilt in scratch from the run_logs below, one init event and one result event each; never tracked)",
+      "source": "core/tools of kensaiapp's development repository at dev_commit, exported with git archive into a scratch folder; nothing in dev's checkout was run or edited"
+    },
+    {
+      "output": "expected/steps.txt",
+      "command": "python3 core/tools/flow_usage.py --projects-root projects",
+      "cwd": "a scratch folder holding projects/ and agents.json (both byte-identical to tests/parity/) and logs/ (run logs rebuilt in scratch from the run_logs below, one init event and one result event each; never tracked)",
+      "source": "core/tools of kensaiapp's development repository at dev_commit, exported with git archive into a scratch folder; nothing in dev's checkout was run or edited"
+    },
+    {
+      "output": "expected/steps.json",
+      "command": "python3 core/tools/flow_usage.py --projects-root projects --json",
+      "cwd": "a scratch folder holding projects/ and agents.json (both byte-identical to tests/parity/) and logs/ (run logs rebuilt in scratch from the run_logs below, one init event and one result event each; never tracked)",
+      "source": "core/tools of kensaiapp's development repository at dev_commit, exported with git archive into a scratch folder; nothing in dev's checkout was run or edited"
+    },
+    {
+      "output": "expected/context_sizes.json",
+      "command": "python3 -c: for each projects/<slug>/<session id>.jsonl, context_gauge.current_context(path, run_usage.Files()) with dev's two modules imported from core/tools; the value, or null for None, keyed by session id",
+      "cwd": "a scratch folder holding projects/ and agents.json (both byte-identical to tests/parity/) and logs/ (run logs rebuilt in scratch from the run_logs below, one init event and one result event each; never tracked)",
+      "source": "core/tools of kensaiapp's development repository at dev_commit, exported with git archive into a scratch folder; nothing in dev's checkout was run or edited"
+    }
+  ],
+  "inputs": {
+    "agents.json": "560f796234f4bca258275d2ba605e20b851fddc35b4a8520b0bcca5e911f3dca",
+    "named_sessions.json": "7533f8a7fa5c6d24315bd8faccbe82d422f50033fa46f685bb8e2687b238c40c",
+    "projects/-home-user-code-reader/7ef055ef-5823-4b0d-845c-efc5b4fdab28.jsonl": "98cf40af457f474a22851b2d9167018f6128b6fcd86e0c5fe4d305af696c4ea9",
+    "projects/-home-user-work-demo/15b8016a-f529-44fe-b6ea-1013fea8a4a8.jsonl": "8b903cc363d50728a4d137d6fe1a5c7ff19b79227aa0ae255a2f65cbcf3b52c1",
+    "projects/-home-user-work-demo/174d0111-bfa9-4539-92d9-5560e0ab4c36/subagents/workflows/wf_ec5e24de-808/agent-a53ef7efd8c468bad.jsonl": "f6a3e6cf9d74705062ddac8d81322e23171f66c70b55cb83378a73d485c4083b",
+    "projects/-home-user-work-demo/174d0111-bfa9-4539-92d9-5560e0ab4c36/subagents/workflows/wf_ec5e24de-808/agent-a53ef7efd8c468bad.meta.json": "facc7b5e27065940780f85c4222344cdf10f24838ea90ace8e0ee71f92f75bf3",
+    "projects/-home-user-work-demo/174d0111-bfa9-4539-92d9-5560e0ab4c36/subagents/workflows/wf_ec5e24de-808/agent-a85c5919a45174165.jsonl": "24cd4515fca26a7a197c3d645a593bf595e5bd488243dc17a6dda226250b7dc4",
+    "projects/-home-user-work-demo/174d0111-bfa9-4539-92d9-5560e0ab4c36/subagents/workflows/wf_ec5e24de-808/agent-a85c5919a45174165.meta.json": "daeea06d266a787628d9f2a7955269965b24636697550dabe20464750d091ac9",
+    "projects/-home-user-work-demo/174d0111-bfa9-4539-92d9-5560e0ab4c36/subagents/workflows/wf_ec5e24de-808/agent-ab58aa559157db106.jsonl": "bda00dbc2e2ea84ebbaacde9f24ddecaf146a5ce4bd02d984c22180b5f6fa560",
+    "projects/-home-user-work-demo/174d0111-bfa9-4539-92d9-5560e0ab4c36/subagents/workflows/wf_ec5e24de-808/agent-ab58aa559157db106.meta.json": "1151eaa2f7100efe059b35cba95642e2d52d71165a0ddbedfff06caadd1bf158",
+    "projects/-home-user-work-demo/174d0111-bfa9-4539-92d9-5560e0ab4c36/subagents/workflows/wf_ec5e24de-808/agent-ac342e357894438af.jsonl": "6da8ed8b4ec6a8d17e342d329a9f81b5aec01bd42b082f97f04289796404c164",
+    "projects/-home-user-work-demo/174d0111-bfa9-4539-92d9-5560e0ab4c36/subagents/workflows/wf_ec5e24de-808/agent-ac342e357894438af.meta.json": "ae14c1ec683e434f77f7e8f5ad1a16bd0c58b0483c6f7d9ed556c114dc51a418",
+    "projects/-home-user-work-demo/174d0111-bfa9-4539-92d9-5560e0ab4c36/subagents/workflows/wf_ec5e24de-808/agent-ad648eb1f468fdd44.jsonl": "6f248507afbf9a6b54e2e5b96a88fa856e48db21f29b0c70f2900d539bde1368",
+    "projects/-home-user-work-demo/174d0111-bfa9-4539-92d9-5560e0ab4c36/subagents/workflows/wf_ec5e24de-808/agent-ad648eb1f468fdd44.meta.json": "b565faf4c97ec62a4da79fe100e948c7f27610759f424d90c531cddeb9621fef",
+    "projects/-home-user-work-demo/174d0111-bfa9-4539-92d9-5560e0ab4c36/subagents/workflows/wf_ec5e24de-808/agent-adea8139719961545.jsonl": "13c0a23351a10b9be811e2b66fe7399d5d68a14bedc6af7bf139b17432812814",
+    "projects/-home-user-work-demo/174d0111-bfa9-4539-92d9-5560e0ab4c36/subagents/workflows/wf_ec5e24de-808/agent-adea8139719961545.meta.json": "ae14c1ec683e434f77f7e8f5ad1a16bd0c58b0483c6f7d9ed556c114dc51a418",
+    "projects/-home-user-work-demo/174d0111-bfa9-4539-92d9-5560e0ab4c36/subagents/workflows/wf_ec5e24de-808/agent-af246bebab758f705.jsonl": "99124dfe961beac2b0a6bd0dcd3297b7c0ac85ce54b6a016f538945bbb481af5",
+    "projects/-home-user-work-demo/174d0111-bfa9-4539-92d9-5560e0ab4c36/subagents/workflows/wf_ec5e24de-808/agent-af246bebab758f705.meta.json": "51d76a44544b77dc6f5037d2e86cc88f600ca6ee8a28466b6d3645982ccdb669",
+    "projects/-home-user-work-demo/174d0111-bfa9-4539-92d9-5560e0ab4c36/subagents/workflows/wf_ec5e24de-808/agent-af81dac1517cc2aa3.jsonl": "42629a2e06c5137d3fe0b6951c46f8b488f1589ae149f3a15dfc50ec92333689",
+    "projects/-home-user-work-demo/174d0111-bfa9-4539-92d9-5560e0ab4c36/subagents/workflows/wf_ec5e24de-808/agent-af81dac1517cc2aa3.meta.json": "ae14c1ec683e434f77f7e8f5ad1a16bd0c58b0483c6f7d9ed556c114dc51a418",
+    "projects/-home-user-work-demo/174d0111-bfa9-4539-92d9-5560e0ab4c36/subagents/workflows/wf_ec5e24de-808/agent-afc6d5e9e874cf67f.jsonl": "b4a3f54dd5bfd74bd5409b47a67fa647bead98750367a70996bc594d4709caf4",
+    "projects/-home-user-work-demo/174d0111-bfa9-4539-92d9-5560e0ab4c36/subagents/workflows/wf_ec5e24de-808/agent-afc6d5e9e874cf67f.meta.json": "6166bab253fff373e6dd6e82c5632b51b0ec5fafb9adccb554937e4b2981a60c",
+    "projects/-home-user-work-demo/174d0111-bfa9-4539-92d9-5560e0ab4c36/subagents/workflows/wf_ec5e24de-808/agent-aff5cbaa50495ff32.jsonl": "9dbed511bc33cb770281bd6317d63a1957550044d604c4b79ff53138509bd096",
+    "projects/-home-user-work-demo/174d0111-bfa9-4539-92d9-5560e0ab4c36/subagents/workflows/wf_ec5e24de-808/agent-aff5cbaa50495ff32.meta.json": "ae14c1ec683e434f77f7e8f5ad1a16bd0c58b0483c6f7d9ed556c114dc51a418",
+    "projects/-home-user-work-demo/174d0111-bfa9-4539-92d9-5560e0ab4c36/subagents/workflows/wf_ec5e24de-808/journal.jsonl": "5f0534eb78008e747e596985e5145d5dca9b25d856b68222ee63fb9d1e778e87",
+    "projects/-home-user-work-demo/829aeb0f-3668-4c2f-bcf8-60af7d85f353.jsonl": "443a5cd2c2bc96ac00e16cfdfa0979c981cb8662f5c3de1d212dfa50d7b67bda",
+    "projects/-home-user-work-demo/a839285c-263f-40a6-8801-71f49d00cc68.jsonl": "7055b0b2a95cff67343383a458ca1444fdb39e6a3047361f85669a09e03cca2f",
+    "projects/-home-user-work-demo/b2417b63-ba0f-449e-9683-d06b266a2f07.jsonl": "50932af298848279bb7e2385df6ccc6a583fead3ebb9038d9096362f67a82ac5",
+    "projects/-home-user-work-demo/c72143c3-f1a7-4e9e-a6b2-366fe1837a6a.jsonl": "c92edf927d757cab89f7cc5b8f4b64ddf42eb47d6119f085d7d9e7e5681452f4",
+    "projects/-home-user-work-demo/f727de4b-eb69-446a-989b-493cb10e2e4f.jsonl": "c313a1c288b3dfe6af141c1c1ac126980d241df8124e51fd0e78d3b45a3bd5b0",
+    "projects/-home-user-work-demo/fac96b52-a71e-45e1-bec2-aa7a00d8b2a6.jsonl": "51b8f8a406a7ee02d14db6ac643f848081eec3410b880a6656fa6591faf23eb0"
+  }
+}

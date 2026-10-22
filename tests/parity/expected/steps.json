@@ -1,0 +1,239 @@
+{
+  "fallback": "Fallback: an agent whose journal result carries no step (or none this reader could attribute to a producer or an auditor) is grouped by its agentType instead, marked fallback so a reader can tell a step from a name.",
+  "span": "Span: wall-clock time from the first to the last model response counted for the run or step, not from when it started; one response reads 0s, and n/a means no counted response carried a readable time.",
+  "runs": [
+    {
+      "wf_id": "wf_ec5e24de-808",
+      "session_id": "174d0111-bfa9-4539-92d9-5560e0ab4c36",
+      "slug": "-home-user-work-demo",
+      "coverage": {
+        "with_step": 9,
+        "without_step": 1,
+        "started_no_result": 0,
+        "files_with_no_journal_entry": 0
+      },
+      "rows": [
+        {
+          "span_seconds": 113.727,
+          "label": "development-plan",
+          "role": "produce",
+          "is_fallback": false,
+          "agent_ids": [
+            "a53ef7efd8c468bad"
+          ],
+          "agent_types": [
+            "tech-lead"
+          ],
+          "spend": {
+            "claude-opus-5": {
+              "input": 40,
+              "output": 415,
+              "thinking": 0,
+              "cache_read": 1459608,
+              "cache_write_1h": 0,
+              "cache_write_5m": 103692
+            }
+          }
+        },
+        {
+          "span_seconds": 93.63,
+          "label": "pm",
+          "role": null,
+          "is_fallback": true,
+          "agent_ids": [
+            "a85c5919a45174165"
+          ],
+          "agent_types": [
+            "pm"
+          ],
+          "spend": {
+            "claude-opus-5": {
+              "input": 26,
+              "output": 71,
+              "thinking": null,
+              "cache_read": 741398,
+              "cache_write_1h": 0,
+              "cache_write_5m": 78011
+            }
+          }
+        },
+        {
+          "span_seconds": 366.182,
+          "label": "development-code-integrity",
+          "role": "produce",
+          "is_fallback": false,
+          "agent_ids": [
+            "ab58aa559157db106"
+          ],
+          "agent_types": [
+            "senior-engineer"
+          ],
+          "spend": {
+            "claude-opus-5": {
+              "input": 32,
+              "output": 218,
+              "thinking": 0,
+              "cache_read": 1012546,
+              "cache_write_1h": 0,
+              "cache_write_5m": 102593
+            }
+          }
+        },
+        {
+          "span_seconds": 215.143,
+          "label": "development-specs",
+          "role": "audit",
+          "is_fallback": false,
+          "agent_ids": [
+            "ac342e357894438af"
+          ],
+          "agent_types": [
+            "kensaiapp-auditor"
+          ],
+          "spend": {
+            "claude-opus-5": {
+              "input": 50,
+              "output": 856,
+              "thinking": 0,
+              "cache_read": 1434647,
+              "cache_write_1h": 0,
+              "cache_write_5m": 74477
+            }
+          }
+        },
+        {
+          "span_seconds": 118.955,
+          "label": "development-design",
+          "role": "produce",
+          "is_fallback": false,
+          "agent_ids": [
+            "ad648eb1f468fdd44"
+          ],
+          "agent_types": [
+            "architect"
+          ],
+          "spend": {
+            "claude-opus-5": {
+              "input": 30,
+              "output": 46,
+              "thinking": null,
+              "cache_read": 1065692,
+              "cache_write_1h": 0,
+              "cache_write_5m": 116529
+            }
+          }
+        },
+        {
+          "span_seconds": 177.325,
+          "label": "development-implementation",
+          "role": "audit",
+          "is_fallback": false,
+          "agent_ids": [
+            "adea8139719961545"
+          ],
+          "agent_types": [
+            "kensaiapp-auditor"
+          ],
+          "spend": {
+            "claude-opus-5": {
+              "input": 42,
+              "output": 580,
+              "thinking": 0,
+              "cache_read": 1170088,
+              "cache_write_1h": 0,
+              "cache_write_5m": 78427
+            }
+          }
+        },
+        {
+          "span_seconds": 144.245,
+          "label": "development-specs",
+          "role": "produce",
+          "is_fallback": false,
+          "agent_ids": [
+            "af246bebab758f705"
+          ],
+          "agent_types": [
+            "product-owner"
+          ],
+          "spend": {
+            "claude-opus-5": {
+              "input": 30,
+              "output": 62,
+              "thinking": null,
+              "cache_read": 879180,
+              "cache_write_1h": 0,
+              "cache_write_5m": 94060
+            }
+          }
+        },
+        {
+          "span_seconds": 286.435,
+          "label": "development-plan",
+          "role": "audit",
+          "is_fallback": false,
+          "agent_ids": [
+            "af81dac1517cc2aa3"
+          ],
+          "agent_types": [
+            "kensaiapp-auditor"
+          ],
+          "spend": {
+            "claude-opus-5": {
+              "input": 50,
+              "output": 920,
+              "thinking": 0,
+              "cache_read": 1800479,
+              "cache_write_1h": 0,
+              "cache_write_5m": 115476
+            }
+          }
+        },
+        {
+          "span_seconds": 86.566,
+          "label": "development-implementation",
+          "role": "produce",
+          "is_fallback": false,
+          "agent_ids": [
+            "afc6d5e9e874cf67f"
+          ],
+          "agent_types": [
+            "developer"
+          ],
+          "spend": {
+            "claude-sonnet-5": {
+              "input": 44,
+              "output": 505,
+              "thinking": 0,
+              "cache_read": 2094533,
+              "cache_write_1h": 0,
+              "cache_write_5m": 143692
+            }
+          }
+        },
+        {
+          "span_seconds": 270.837,
+          "label": "development-design",
+          "role": "audit",
+          "is_fallback": false,
+          "agent_ids": [
+            "aff5cbaa50495ff32"
+          ],
+          "agent_types": [
+            "kensaiapp-auditor"
+          ],
+          "spend": {
+            "claude-opus-5": {
+              "input": 44,
+              "output": 285,
+              "thinking": 0,
+              "cache_read": 1347549,
+              "cache_write_1h": 0,
+              "cache_write_5m": 97922
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
