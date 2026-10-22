@@ -385,6 +385,8 @@ def test_reverse_lookup_of_a_loopback_address_is_not_outbound(tmp_path):
         socket.gethostbyaddr("127.0.0.1")
         socket.getnameinfo(("127.0.0.1", 80), 0)
         """,
+        # A real reverse lookup: on a machine with a slow resolver it alone took 20 seconds.
+        timeout=120,
     )
 
     assert seen.attempts == ()

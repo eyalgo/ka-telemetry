@@ -36,6 +36,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import socketserver
 import sys
 import threading
 from datetime import datetime, timezone
@@ -199,6 +200,15 @@ class TelemetryServer(ThreadingHTTPServer):
         super().__init__(server_address, handler_class)
         self.store = store
         self.clock = clock
+
+    def server_bind(self) -> None:
+        """Bind as `HTTPServer` does, without its `socket.getfqdn` of the host: that is a name
+        lookup, which on a machine whose resolver is slow held the start for tens of seconds
+        before the receiver listened. Nothing here reads `server_name`; it is the host as given."""
+        socketserver.TCPServer.server_bind(self)
+        host, port = self.server_address[:2]
+        self.server_name = str(host)
+        self.server_port = port
 
 
 def publish_endpoint(path: str, port: int) -> None:

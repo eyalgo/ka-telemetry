@@ -3869,6 +3869,9 @@ def test_a_python_whose_pip_refuses_as_externally_managed_is_chosen(tmp_path):
     attempt = subprocess.run(
         [str(chosen.executable), "-m", "pip", "install", "--no-index", "no-such-package-here"],
         capture_output=True, text=True, check=False,
+        # As the measure runs it: a site-wide pip configuration that breaks the refusal, such as
+        # a CI runner's, is not read.
+        env=release_metrics.isolated_environment(tmp_path / "attempt", os.environ),
     )
 
     assert attempt.returncode != 0 and "externally-managed-environment" in attempt.stderr
@@ -4033,11 +4036,17 @@ def test_a_real_private_copy_of_a_permissive_python_refuses_pip_and_leaves_the_h
         find_pipx=release_metrics.find_pipx_on_path,
     )
 
-    chosen = preparation.base_python(tmp_path / "scratch")
+    try:
+        chosen = preparation.base_python(tmp_path / "scratch")
+    except release_metrics.PreparationFailed as failure:
+        pytest.skip(f"this machine's permissive Python cannot be copied privately: {failure}")
 
     attempt = subprocess.run(
         [str(chosen.executable), "-m", "pip", "install", "--no-index", "no-such-package-here"],
         capture_output=True, text=True, check=False,
+        # As the measure runs it: a site-wide pip configuration that breaks the refusal, such as
+        # a CI runner's, is not read.
+        env=release_metrics.isolated_environment(tmp_path / "attempt", os.environ),
     )
     assert chosen.executable.is_relative_to(tmp_path / "scratch")
     assert "externally-managed-environment" in attempt.stderr

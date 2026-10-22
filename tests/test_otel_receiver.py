@@ -97,6 +97,19 @@ def _get(port: int, path: str) -> int:
 
 
 class TestPortsAndTheCompositionRoot:
+    def test_binding_looks_up_no_name(self, tmp_path, monkeypatch):
+        # A slow resolver once held the start for tens of seconds: binding asks it nothing.
+        def no_lookup(*args):
+            raise AssertionError("the receiver looked up a name while binding")
+
+        monkeypatch.setattr(socket, "getfqdn", no_lookup)
+        server = receiver.build_receiver(0, str(tmp_path))
+        try:
+            assert server.server_port != 0
+            assert server.server_name == "127.0.0.1"
+        finally:
+            server.server_close()
+
     def test_store_exposes_exactly_one_capability(self):
         # "appending one record for a named signal. Nothing else." — no read-back, no query.
         assert {name for name in vars(receiver.Store) if not name.startswith("_")} == {
