@@ -44,6 +44,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from dataclasses import asdict, dataclass, field, fields
 from enum import Enum
@@ -327,7 +328,18 @@ def _summed_field(records: tuple[LogRecord, ...], field: str) -> int | float:
     """`field` summed across `records`' own attributes via `as_number` — the one summation
     `agent_rows` and `_compare_group` both perform over the same four token classes, `cost_usd`
     and `duration_ms`, on two different groupings of the same records."""
-    return sum(as_number(r.record_attrs.get(field)) for r in records)
+    return _total(as_number(r.record_attrs.get(field)) for r in records)
+
+
+def _total(values) -> int | float:
+    """`values` added up the same way on every supported Python: whole counts as integers, and
+    any sum with a fraction in it by `math.fsum`, correctly rounded. Plain `sum` of floats changed
+    in Python 3.12, so the same records once gave a cost of 0.9501514 on 3.14 and
+    0.9501514000000001 on 3.11."""
+    values = list(values)
+    if any(isinstance(value, float) for value in values):
+        return math.fsum(values)
+    return sum(values)
 
 
 def api_request_records(
@@ -1338,7 +1350,7 @@ def render(
     `directory` say what reading `metrics.jsonl` came to, as `render_checks` takes them."""
     validate_prefix(prefix)
     ordered = _by_cost(rows)
-    total_cost = sum(r.cost_usd for r in ordered)
+    total_cost = _total(r.cost_usd for r in ordered)
 
     first = f"{len(ordered)} agent row(s), {skipped_lines} unreadable line(s) skipped."
     if skipped_metric_lines:
@@ -1487,7 +1499,7 @@ def render_json(
     ordered = _by_cost(rows)
     payload: dict[str, Any] = {
         "skipped_lines": skipped_lines,
-        "total_cost_usd": sum(r.cost_usd for r in ordered),
+        "total_cost_usd": _total(r.cost_usd for r in ordered),
         "rows": [_row_json(row, prefix) for row in ordered],
         "subagent_coverage_note": SUBAGENT_COVERAGE_NOTE,
         "subagent_rows": [

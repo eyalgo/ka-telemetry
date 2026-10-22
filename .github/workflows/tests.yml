@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  # The release workflow calls this one, so a version is published only once these tests pass on
+  # the very commit its tag names.
+  workflow_call:
 
 jobs:
   test:
@@ -13,10 +16,13 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        python: ["3.11", "3.14"]
+        # Every Python the package declares in pyproject.toml, from requires-python up.
+        python: ["3.11", "3.12", "3.13", "3.14"]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}

@@ -182,6 +182,10 @@ def test_expected_outputs_are_the_four_stored_outputs():
 @pytest.mark.parametrize("output", STORED_OUTPUTS)
 def test_stored_output_matches_the_copy_commit_reader(output, tmp_path):
     needs_history()
+    if sys.version_info < (3, 12):
+        # The copy-commit reader adds costs with plain `sum`, whose float result changed in
+        # Python 3.12; the stored output is what it prints on 3.12 and later.
+        pytest.skip("the copy-commit reader's float sums differ before Python 3.12")
     manifest = _manifest()
     revision = manifest["source_commits"]["copy_commit"]
     source = _git("show", f"{revision}:agent_usage.py")

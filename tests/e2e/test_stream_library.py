@@ -9,6 +9,7 @@ same inputs. The two are separate entry points over one reader, and they must no
 from __future__ import annotations
 
 import json
+import math
 import shutil
 import subprocess
 from pathlib import Path
@@ -178,7 +179,8 @@ def test_library_matches_installed_cli_json_in_all_modes(installed, tmp_path, mo
         assert _compare_as_the_command_prints_it(library["compare"]) == command["compare"]
     else:
         assert library["compare"] is None and "compare" not in command
-    assert sum(r["cost_usd"] for r in library["rows"]) == command["total_cost_usd"]
+    # The command adds costs with `math.fsum`, so the same total comes out on every Python.
+    assert math.fsum(r["cost_usd"] for r in library["rows"]) == command["total_cost_usd"]
 
 
 def test_the_library_labels_and_the_command_labels_name_the_same_attributes(

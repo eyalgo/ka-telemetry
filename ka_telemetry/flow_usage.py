@@ -1013,6 +1013,23 @@ def _in_order_from(projects_root: Path, places: Iterable[Path]) -> tuple[Path, .
     return tuple(sorted(set(places), key=lambda place: place.relative_to(projects_root).parts))
 
 
+def _subdirectories(directory: Path) -> list[Path]:
+    """The entries of `directory` that are directories, links to one included, in the order the
+    system lists them; none when it cannot be listed."""
+    try:
+        with os.scandir(directory) as entries:
+            return [Path(entry.path) for entry in entries if _is_directory(entry)]
+    except OSError:
+        return []
+
+
+def _is_directory(entry: os.DirEntry) -> bool:
+    try:
+        return entry.is_dir()
+    except OSError:
+        return False
+
+
 class Files:
     """Every filesystem touch this reader makes."""
 
@@ -1022,8 +1039,18 @@ class Files:
         Agent-tool subagent, no workflow) and never `<slug>/<sid>.jsonl` (an interactive
         session), because neither matches this glob's shape. A nonexistent `projects_root`
         yields no matches rather than raising, the same answer `Path.glob` gives for one that
-        exists and holds none."""
-        return [p.parent for p in projects_root.glob("*/*/subagents/workflows/*/journal.jsonl")]
+        exists and holds none. The walk lists only the three wildcard levels and joins the named
+        ones, and `journal.jsonl` is observed without following it, so a link there that leads
+        nowhere still names a run. This is what `Path.glob` answers on Python 3.13 and later;
+        3.11 and 3.12 answered differently for unreadable directories and dangling links, so the
+        walk does not use it."""
+        return [
+            run_dir
+            for slug in _subdirectories(projects_root)
+            for session in _subdirectories(slug)
+            for run_dir in _subdirectories(session / "subagents" / "workflows")
+            if os.path.lexists(run_dir / "journal.jsonl")
+        ]
 
     def discover_workflows(self, projects_root: Path) -> WorkflowDiscovery:
         """The same workflow run directories as `find_workflow_dirs`, found by looking in each

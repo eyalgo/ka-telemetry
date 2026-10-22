@@ -3676,11 +3676,12 @@ def test_flow_runs_and_find_workflow_dirs_return_base_results_on_every_fixture(
     if depth is not None:
         with_mode(_depth_paths(run_dir)[depth], mode)
     files = flow_usage.Files()
-    glob_result = [p.parent for p in tmp_path.glob("*/*/subagents/workflows/*/journal.jsonl")]
+    # What `Path.glob("*/*/subagents/workflows/*/journal.jsonl")` returns on Python 3.13 and
+    # later. Earlier Pythons' own glob answers differently, so it is not asked here.
+    base_result = [run_dir] if mode in (None, 0o111) else []
 
-    assert files.find_workflow_dirs(tmp_path) == glob_result
-    assert [r.run_dir for r in flow_usage.flow_runs(tmp_path, files)] == glob_result
-    assert glob_result == ([run_dir] if mode in (None, 0o111) else [])
+    assert files.find_workflow_dirs(tmp_path) == base_result
+    assert [r.run_dir for r in flow_usage.flow_runs(tmp_path, files)] == base_result
     assert files.find_workflow_dirs(tmp_path / "missing-root") == []
 
 
