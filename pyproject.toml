@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ka-telemetry"
-version = "0.1.1"
+version = "0.2.0"
 description = "Receives the telemetry stream Claude Code can send, reads the transcripts it keeps on this machine, and reports the tokens they record."
 readme = "README.md"
 authors = [{ name = "Eyal Golan" }]

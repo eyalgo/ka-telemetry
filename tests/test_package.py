@@ -482,7 +482,7 @@ APACHE_2_0_TITLE_LINES = 4  # lines holding "Apache License"
 APACHE_2_0_VERSION_LINES = 2  # lines holding "Version 2.0"
 LICENSE_EXPRESSION = "Apache-2.0"
 DESCRIPTION_SOURCES = ("transcripts", "telemetry stream")
-DISTRIBUTION_VERSION = "0.1.1"
+DISTRIBUTION_VERSION = "0.2.0"
 
 PYPROJECT_FILE = PRODUCT_ROOT / "pyproject.toml"
 

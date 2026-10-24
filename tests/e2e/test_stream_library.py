@@ -388,3 +388,140 @@ def test_missing_logs_is_distinct_from_missing_metrics(installed, tmp_path):
     document = json.loads(missing.stdout)
     assert (document["state"], document["directory"]) == ("nothing_received", str(no_logs))
     assert "rows" not in document and "metrics_check" not in document
+
+
+COUNT_PROBE = """
+import json
+import sys
+from dataclasses import asdict
+
+from ka_telemetry import stream_usage
+
+report = stream_usage.read_report(stream_usage.build_reader(sys.argv[1]))
+print(json.dumps([
+    {
+        "figures": asdict(row),
+        "invalid_duration_ms_count": row.invalid_duration_ms_count,
+        "invalid_total_tool_uses_count": row.invalid_total_tool_uses_count,
+    }
+    for row in report.subagent_rows
+]))
+"""
+
+
+def _completed_record(
+    session: str, agent_type: str, duration: dict | None = None, tools: dict | None = None
+) -> dict:
+    """One `subagent_completed` record; a field passed as `None` is left out of it."""
+    attributes = [
+        {"key": "session.id", "value": {"stringValue": session}},
+        {"key": "event.name", "value": {"stringValue": "subagent_completed"}},
+        {"key": "agent_type", "value": {"stringValue": agent_type}},
+    ]
+    for key, value in (("duration_ms", duration), ("total_tool_uses", tools)):
+        if value is not None:
+            attributes.append({"key": key, "value": value})
+    return {"attributes": attributes}
+
+
+def test_read_report_rows_carry_the_command_counts(installed, tmp_path):
+    home = tmp_path / "home"
+    home.mkdir()
+    stream = tmp_path / "stream"
+    stream.mkdir()
+    # The change spec's probe (§ Examples), completed records only: the record with neither field
+    # counts nothing, and `"2"` is a number.
+    records = [
+        _completed_record("s1", "Explore", {"intValue": 100}, {"intValue": 3}),
+        _completed_record("s1", "Explore", {"stringValue": "slow"}, {"boolValue": True}),
+        _completed_record("s1", "Explore", {"boolValue": False}, {"stringValue": "many"}),
+        _completed_record("s1", "Explore"),
+        _completed_record("s1", "Explore", {"intValue": "oops"}, {"stringValue": "2"}),
+        _completed_record("s1", "general-purpose", {"intValue": 50}, {"intValue": 1}),
+        _completed_record("s2", "Explore", {"kvlistValue": {}}, {"intValue": 4}),
+    ]
+    scope = {"logRecords": records}
+    body = {"resourceLogs": [{"resource": {"attributes": []}, "scopeLogs": [scope]}]}
+    (stream / "logs.jsonl").write_text(json.dumps({"signal": "logs", "body": body}) + "\n")
+    outside = tmp_path / "outside-the-checkout"
+    outside.mkdir()
+
+    done = subprocess.run(
+        [str(installed.python), "-I", "-c", COUNT_PROBE, str(stream)],
+        capture_output=True, text=True, check=False, cwd=outside,
+    )
+    assert done.returncode == 0, done.stderr
+    library = json.loads(done.stdout)
+    command = _cli_json(installed, home, "agents", "--dir", str(stream))["subagent_rows"]
+
+    assert [
+        (r["invalid_duration_ms_count"], r["invalid_total_tool_uses_count"]) for r in library
+    ] == [(3, 2), (0, 0), (1, 0)]
+    # The figures are the spec's: each is today's number, and the counts sit beside them.
+    assert [
+        (f["session_id"], f["agent_type"], f["count"], f["duration_ms"], f["total_tool_uses"])
+        for f in (r["figures"] for r in library)
+    ] == [
+        ("s1", "Explore", 5, 100, 5),
+        ("s1", "general-purpose", 1, 50, 1),
+        ("s2", "Explore", 1, 0, 4),
+    ]
+    # The original five fields are compared on their own: the counts are not among them.
+    assert [r["figures"] for r in library] == [
+        {k: v for k, v in entry.items() if k != "invalid_values"} for entry in command
+    ]
+    # The printed counts are the library's counts, for every row.
+    for row, entry in zip(library, command, strict=True):
+        printed = entry.get("invalid_values", {})
+        assert printed.get("duration_ms", 0) == row["invalid_duration_ms_count"]
+        assert printed.get("total_tool_uses", 0) == row["invalid_total_tool_uses_count"]
+
+
+def test_library_comparison_equals_the_installed_json_over_a_dirty_stream(installed, tmp_path):
+    """The library's `compare` carries the counts the command prints, over a stream where one side
+    left values out, one side is clean and a third value matches no request."""
+    home = tmp_path / "home"
+    home.mkdir()
+    stream = tmp_path / "dirty"
+    stream.mkdir()
+
+    def request(arm: str, session: str, cost: dict, tokens: dict) -> dict:
+        names = ("session.id", "event.name", "model", "query_source", "arm")
+        values = (session, "api_request", "claude-model", "sdk", arm)
+        attributes = [
+            {"key": k, "value": {"stringValue": v}} for k, v in zip(names, values, strict=True)
+        ]
+        attributes.append({"key": "cost_usd", "value": cost})
+        attributes.append({"key": "input_tokens", "value": tokens})
+        return {"attributes": attributes}
+
+    records = [
+        request("A", "s1", {"doubleValue": 0.25}, {"intValue": 4}),
+        request("A", "s2", {"stringValue": "abc"}, {"boolValue": True}),
+        request("A", "s2", {"stringValue": "x"}, {"intValue": 6}),
+        request("B", "s3", {"doubleValue": 0.5}, {"intValue": 2}),
+    ]
+    scope = {"logRecords": records}
+    body = {"resourceLogs": [{"resource": {"attributes": []}, "scopeLogs": [scope]}]}
+    (stream / "logs.jsonl").write_text(json.dumps({"signal": "logs", "body": body}) + "\n")
+    comparison = ["arm", "A", "B"]
+
+    library = _library(installed, tmp_path, stream, comparison=comparison)["compare"]
+    command = _cli_json(installed, home, "agents", "--dir", str(stream), "--compare", *comparison)
+
+    assert library["a"]["invalid_values"] == {"input_tokens": 1, "cost_usd": 2}
+    assert library["b"]["invalid_values"] == {}
+    assert command["compare"]["a"]["invalid_values"] == library["a"]["invalid_values"]
+    assert "invalid_values" not in command["compare"]["b"]
+    for side in ("a", "b"):
+        assert _group_as_the_command_prints_it(library[side]) == {
+            key: value
+            for key, value in command["compare"][side].items()
+            if key != "invalid_values"
+        }
+
+    empty = ["arm", "A", "nothing"]
+    library_empty = _library(installed, tmp_path, stream, comparison=empty)["compare"]
+    command_empty = _cli_json(installed, home, "agents", "--dir", str(stream), "--compare", *empty)
+    assert library_empty["b"] is None and command_empty["compare"]["b"] is None
+    assert library_empty["a"]["invalid_values"] == command_empty["compare"]["a"]["invalid_values"]

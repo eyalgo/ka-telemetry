@@ -23,6 +23,7 @@ there; the clean and absent fixtures run either way.
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -1141,7 +1142,7 @@ def test_permission_proof_skips_as_root_and_asserts_station_items_1_to_4(tmp_pat
             pytest.fail("a block run as root must be skipped, not entered")
 
     root = _tree(tmp_path)
-    with sealed_paths(1) as seal:
+    with sealed_paths(os.geteuid()) as seal:
         transcript = seal(root / KENSAI / f"{RUN_SESSION}.jsonl")
         opened = _runs(tmp_path, root)
         opened_json = _runs(tmp_path, root, "--json")

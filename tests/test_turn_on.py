@@ -2710,3 +2710,22 @@ class TestGuardsAcrossEveryMode:
         assert len(calls) == 1
         command = calls[0].args[0]
         assert [element.value for element in command.elts[:2]] == ["git", "rev-parse"]
+
+
+class TestSetupStillAcceptsInvalidValuesAsAPrefix:
+    """`agents` refuses `--prefix invalid_values` on its own (CP-632); setup shares the reader's
+    prefix check and keeps accepting it, and keeps refusing every reserved row key."""
+
+    def test_setup_accepts_invalid_values_as_a_prefix(self, tmp_path, capsys):
+        parsed = turn_on._build_parser().parse_args(["--print", "--prefix", "invalid_values"])
+        assert parsed.prefix == "invalid_values"
+        assert stream_usage.check_prefix("invalid_values") is None
+
+        status, _, _ = _run_print(
+            tmp_path, capsys, "--prefix", "invalid_values", endpoint=_endpoint_file(tmp_path)
+        )
+        assert status == 0
+
+    @pytest.mark.parametrize("key", stream_usage.ROW_KEYS)
+    def test_setup_keeps_refusing_every_reserved_row_key(self, key, capsys):
+        assert "--prefix" in _refused(["--print", "--prefix", key], capsys)

@@ -30,7 +30,9 @@ from __future__ import annotations
 import dataclasses
 import errno
 import json
+import math
 import os
+import re
 from pathlib import Path
 
 import pytest
@@ -5350,3 +5352,1560 @@ def test_render_checks_with_no_checks_uses_the_new_heading_and_failure_strings()
         "  No sessions to check.",
     ]
     assert "cross" not in stream_usage.render_checks(()).lower()
+
+
+# ── Invalid-value counts: a present value that was not a number ────────────
+#
+# CP-624–CP-627. A figure stays the sum of the values that were numbers; beside it a row carries,
+# per summed field, how many of its records held a present value that was not a number.
+
+SUMMED_FIELDS = (
+    "input_tokens",
+    "output_tokens",
+    "cache_read_tokens",
+    "cache_creation_tokens",
+    "cost_usd",
+    "duration_ms",
+)
+NOT_A_NUMBER_VALUES = pytest.param("abc", id="string"), pytest.param(True, id="true"), pytest.param(
+    False, id="false"
+)
+
+
+def _raw_logs_line(attribute_lists: list[list[dict]]) -> str:
+    """One `logs.jsonl` line whose records carry exactly the attribute lists given, envelopes and
+    all — so a value arrives in whatever shape the test names, through the real decoder."""
+    return json.dumps(
+        {
+            "signal": "logs",
+            "received_at": "2026-10-23T00:00:00+00:00",
+            "body": {
+                "resourceLogs": [
+                    {
+                        "resource": {"attributes": []},
+                        "scopeLogs": [
+                            {
+                                "scope": {},
+                                "logRecords": [{"attributes": attrs} for attrs in attribute_lists],
+                            }
+                        ],
+                    }
+                ]
+            },
+        }
+    )
+
+
+def _request_attributes(**envelopes) -> list[dict]:
+    """The attributes of one `api_request` whose summed fields carry the envelopes given
+    (`field=<OTLP value object>`); a field left out is absent, not zero."""
+    attributes = [
+        _attr("event.name", "api_request"),
+        _attr("session.id", "sid-1"),
+        _attr("query_source", "sdk"),
+    ]
+    attributes.extend({"key": key, "value": value} for key, value in envelopes.items())
+    return attributes
+
+
+class TestInvalidValueCounts:
+    @pytest.mark.parametrize("field", SUMMED_FIELDS)
+    @pytest.mark.parametrize("bad", NOT_A_NUMBER_VALUES)
+    def test_invalid_value_adds_nothing_and_is_counted_once_per_field(self, field, bad):
+        valid = _api_request(**{field: 7})
+        invalid = _api_request(**{field: bad})
+
+        (row,) = stream_usage.agent_rows((valid, invalid))
+
+        assert getattr(row, field) == 7
+        assert row.request_count == 2
+        assert row.invalid_values == {field: 1}
+
+    @pytest.mark.parametrize(
+        "envelope",
+        [
+            pytest.param(None, id="present-null"),
+            pytest.param({"boolValue": True}, id="true"),
+            pytest.param({"boolValue": False}, id="false"),
+            pytest.param({"stringValue": ""}, id="empty-string"),
+            pytest.param({"stringValue": "abc"}, id="non-numeric-string"),
+            pytest.param({"intValue": "abc"}, id="int-value-holding-no-number"),
+            pytest.param({"unknownValue": 3}, id="object-with-none-of-the-four-keys"),
+            pytest.param([1, 2], id="list"),
+            pytest.param({"nested": {"a": 1}}, id="object"),
+        ],
+    )
+    @pytest.mark.parametrize("field", SUMMED_FIELDS)
+    def test_every_unreadable_shape_is_one_count_through_the_real_decoder(self, field, envelope):
+        line = _raw_logs_line(
+            [
+                _request_attributes(**{field: envelope}),
+                _request_attributes(**{field: {"intValue": 4}}),
+            ]
+        )
+
+        read = stream_usage.read_log_lines([line])
+        (row,) = stream_usage.agent_rows(read.records)
+
+        assert read.skipped == 0
+        assert row.request_count == 2
+        assert getattr(row, field) == 4
+        assert row.invalid_values == {field: 1}
+
+    @pytest.mark.parametrize("field", SUMMED_FIELDS)
+    def test_absent_field_adds_no_count(self, field):
+        with_field = _api_request(**{field: 5})
+        without = _api_request()
+        del without.record_attrs[field]
+
+        (row,) = stream_usage.agent_rows((with_field, without))
+
+        assert getattr(row, field) == 5
+        assert row.invalid_values == {}
+
+    @pytest.mark.parametrize("field", SUMMED_FIELDS)
+    def test_value_only_in_resource_attributes_is_absent(self, field):
+        attrs = {"event.name": "api_request", "session.id": "sid-1"}
+        record = _record(attrs, resource_attrs={field: "abc"})
+
+        (row,) = stream_usage.agent_rows((record,))
+
+        assert getattr(row, field) == 0
+        assert row.invalid_values == {}
+
+    def test_present_invalid_record_value_counts_even_when_resource_has_a_valid_one(self):
+        record = _record(
+            {"event.name": "api_request", "session.id": "sid-1", "cost_usd": "abc"},
+            resource_attrs={"cost_usd": 9.0},
+        )
+
+        (row,) = stream_usage.agent_rows((record,))
+
+        assert row.cost_usd == 0
+        assert row.invalid_values == {"cost_usd": 1}
+
+    @pytest.mark.parametrize(
+        "number, expected",
+        [
+            (3, 3),
+            (2.5, 2.5),
+            (0, 0),
+            (0.0, 0),
+            ("0", 0),
+            ("7", 7),
+            ({"intValue": "3"}, None),
+            ("2.5", 2.5),
+            ("1e3", 1000.0),
+            ("+5", 5),
+            ("-5", -5),
+            (" 5 ", 5),
+        ],
+    )
+    def test_numbers_keep_their_results_and_are_never_counted(self, number, expected):
+        if isinstance(number, dict):
+            line = _raw_logs_line([_request_attributes(duration_ms=number)])
+            (row,) = stream_usage.agent_rows(stream_usage.read_log_lines([line]).records)
+            assert row.duration_ms == 3
+        else:
+            (row,) = stream_usage.agent_rows((_api_request(duration_ms=number),))
+            assert row.duration_ms == expected
+        assert row.invalid_values == {}
+
+    @pytest.mark.parametrize(
+        "text, reads_as", [("nan", math.isnan), ("inf", lambda n: n == math.inf)]
+    )
+    def test_nan_and_inf_keep_the_acceptance_as_number_gives_them(self, text, reads_as):
+        # Today (6de1734) these strings read as the non-finite floats Python parses them to; the
+        # change moves no value across the line (CP-624), so they still do, and are not counted.
+        (row,) = stream_usage.agent_rows((_api_request(cost_usd=text),))
+
+        assert reads_as(row.cost_usd)
+        assert reads_as(stream_usage.as_number(text))
+        assert row.invalid_values == {}
+
+    @pytest.mark.parametrize("zero", [0, 0.0, "0", "0.0"])
+    def test_valid_zero_is_not_an_invalid_value(self, zero):
+        (row,) = stream_usage.agent_rows((_api_request(**{f: zero for f in SUMMED_FIELDS}),))
+
+        assert [getattr(row, f) for f in SUMMED_FIELDS] == [0] * 6
+        assert row.invalid_values == {}
+
+    def test_counts_are_per_row_and_do_not_leak_between_rows(self):
+        dirty = _api_request(**{"session.id": "sid-dirty", "cost_usd": "abc"})
+        clean = _api_request(**{"session.id": "sid-clean"})
+
+        rows = {r.session_id: r for r in stream_usage.agent_rows((dirty, clean))}
+
+        assert rows["sid-dirty"].invalid_values == {"cost_usd": 1}
+        assert rows["sid-clean"].invalid_values == {}
+
+    def test_count_does_not_split_or_reorder_rows(self):
+        records = (
+            _api_request(**{"session.id": "first", "cost_usd": 0.5}),
+            _api_request(**{"session.id": "second", "cost_usd": "abc"}),
+            _api_request(**{"session.id": "first", "cost_usd": "abc"}),
+            _api_request(**{"session.id": "third", "cost_usd": 0.1}),
+        )
+
+        rows = stream_usage.agent_rows(records)
+
+        assert [r.session_id for r in rows] == ["first", "second", "third"]
+        assert [r.request_count for r in rows] == [2, 1, 1]
+
+    def test_invalid_value_in_filtered_out_record_is_counted_nowhere(self):
+        kept = _api_request(**{"session.id": "keep", "cost_usd": 1.0})
+        dropped = _api_request(**{"session.id": "drop", "cost_usd": "abc"})
+
+        rows = stream_usage.agent_rows((kept, dropped), where=(("session.id", "keep"),))
+        nothing = stream_usage.agent_rows((kept, dropped), where=(("session.id", "none"),))
+
+        assert [r.invalid_values for r in rows] == [{}]
+        assert nothing == ()
+
+    def test_chosen_label_prefix_splits_groups_before_counting(self):
+        records = (
+            _api_request(**{"team.arm": "a", "cost_usd": "abc"}),
+            _api_request(**{"team.arm": "b", "cost_usd": 1.0}),
+            _api_request(**{"team.arm": "b", "duration_ms": "abc"}),
+        )
+
+        rows = {r.labels["team.arm"]: r for r in stream_usage.agent_rows(records, prefix="team")}
+
+        assert rows["a"].invalid_values == {"cost_usd": 1}
+        assert rows["b"].invalid_values == {"duration_ms": 1}
+
+    def test_non_api_request_events_carrying_the_six_names_are_not_counted(self):
+        other = _record(
+            {"event.name": "subagent_completed", **{f: "abc" for f in SUMMED_FIELDS}}
+        )
+
+        assert stream_usage.agent_rows((other, _api_request())) [0].invalid_values == {}
+
+    def test_all_values_invalid_gives_zero_figures_and_six_counts(self):
+        records = (
+            _api_request(**{f: "abc" for f in SUMMED_FIELDS}),
+            _api_request(**{f: True for f in SUMMED_FIELDS}),
+        )
+
+        (row,) = stream_usage.agent_rows(records)
+
+        assert [getattr(row, f) for f in SUMMED_FIELDS] == [0] * 6
+        assert row.request_count == 2
+        assert row.invalid_values == {f: 2 for f in SUMMED_FIELDS}
+
+    def test_all_fields_absent_gives_zero_figures_and_no_count(self):
+        record = _record({"event.name": "api_request", "session.id": "sid-1"})
+
+        (row,) = stream_usage.agent_rows((record,))
+
+        assert [getattr(row, f) for f in SUMMED_FIELDS] == [0] * 6
+        assert row.request_count == 1
+        assert row.invalid_values == {}
+
+    def test_agent_row_default_count_map_is_empty_and_independent(self):
+        positional = stream_usage.AgentRow("s", None, None, None, {}, (), 1, 1, 2, 3, 4, 0.5, 6)
+        keyword = stream_usage.AgentRow(
+            session_id="s",
+            workflow_run_id=None,
+            query_source=None,
+            agent_name=None,
+            labels={},
+            models=(),
+            request_count=1,
+            input_tokens=1,
+            output_tokens=2,
+            cache_read_tokens=3,
+            cache_creation_tokens=4,
+            cost_usd=0.5,
+            duration_ms=6,
+        )
+
+        assert positional.invalid_values == {} == keyword.invalid_values
+        assert positional.invalid_values is not keyword.invalid_values
+
+    def test_read_report_rows_carry_the_same_counts_the_renderers_print(self, tmp_path):
+        _write_stream(
+            tmp_path,
+            [_raw_logs_line([_request_attributes(output_tokens={"stringValue": "abc"})])],
+        )
+
+        report = stream_usage.read_report(stream_usage.build_reader(tmp_path))
+
+        assert [r.invalid_values for r in report.rows] == [{"output_tokens": 1}]
+
+    def test_as_number_still_reads_a_non_number_as_zero(self):
+        assert stream_usage.as_number("abc") == 0
+        assert stream_usage.as_number(True) == 0
+        assert stream_usage.as_number(None) == 0
+
+
+# ── Invalid-value counts, printed (library level) ──────────────────────────
+
+_NO_COUNT_TEXT_AT_6DE1734 = (
+    "2 agent row(s), 0 unreadable line(s) skipped.\n"
+    "  session=s1 workflow_run_id=None query_source=sdk agent=a  requests=2  models=m  "
+    "cost_usd=0.500000\n"
+    "    input=10 output=20 cache_read=30 cache_creation=40 duration_ms=60\n"
+    "  session=s2 workflow_run_id=None query_source=sdk agent=b  requests=1  models=m  "
+    "cost_usd=0.250000\n"
+    "    input=1 output=2 cache_read=3 cache_creation=4 duration_ms=6\n"
+    "    team: team.x=1\n"
+    "Total cost_usd: 0.750000\n"
+    "Every cost here is an estimate: Claude Code's own, in US dollars as Claude Code reported it, "
+    "or a total, mean or difference of those estimates. None is a bill.\n"
+    "\n"
+    "subagent_completed counts Agent-tool agents only — a Workflow step's own requests "
+    '(query_source "agent:builtin:workflow-subagent") emit no subagent_completed record, so this '
+    "count does not cover them.\n"
+    "No subagent_completed records read.\n"
+    "\n"
+    "Totals check (claude_code.cost.usage vs summed cost_usd):\n"
+    "  No sessions to check.\n"
+)
+_NO_COUNT_JSON_AT_6DE1734 = (
+    '{\n  "skipped_lines": 0,\n  "total_cost_usd": 0.75,\n  "rows": [\n    {\n'
+    '      "session_id": "s1",\n      "workflow_run_id": null,\n      "query_source": "sdk",\n'
+    '      "agent_name": "a",\n      "team": {},\n      "models": [\n        "m"\n      ],\n'
+    '      "request_count": 2,\n      "input_tokens": 10,\n      "output_tokens": 20,\n'
+    '      "cache_read_tokens": 30,\n      "cache_creation_tokens": 40,\n'
+    '      "cost_usd": 0.5,\n      "duration_ms": 60\n    },\n    {\n'
+    '      "session_id": "s2",\n      "workflow_run_id": null,\n      "query_source": "sdk",\n'
+    '      "agent_name": "b",\n      "team": {\n        "team.x": "1"\n      },\n'
+    '      "models": [\n        "m"\n      ],\n      "request_count": 1,\n'
+    '      "input_tokens": 1,\n      "output_tokens": 2,\n      "cache_read_tokens": 3,\n'
+    '      "cache_creation_tokens": 4,\n      "cost_usd": 0.25,\n      "duration_ms": 6\n'
+    "    }\n  ],\n"
+    '  "subagent_coverage_note": "subagent_completed counts Agent-tool agents only \\u2014 a '
+    "Workflow step's own requests (query_source \\\"agent:builtin:workflow-subagent\\\") emit no "
+    'subagent_completed record, so this count does not cover them.",\n'
+    '  "subagent_rows": [],\n  "metrics_check": [],\n'
+    '  "cost_estimate_note": "Every cost here is an estimate: Claude Code\'s own, in US dollars '
+    'as Claude Code reported it, or a total, mean or difference of those estimates. None is a '
+    'bill."\n}'
+)
+
+
+def _counted_row(counts: dict[str, int] | None = None, **overrides) -> stream_usage.AgentRow:
+    fields = dict(
+        session_id="s1",
+        workflow_run_id=None,
+        query_source="sdk",
+        agent_name="a",
+        labels={},
+        models=("m",),
+        request_count=2,
+        input_tokens=10,
+        output_tokens=20,
+        cache_read_tokens=30,
+        cache_creation_tokens=40,
+        cost_usd=0.5,
+        duration_ms=60,
+    )
+    fields.update(overrides)
+    if counts is not None:
+        fields["invalid_values"] = counts
+    return stream_usage.AgentRow(**fields)
+
+
+def _rendered(rows, *, prefix=None) -> str:
+    return stream_usage.render(rows, (), (), 0, None, prefix=prefix)
+
+
+def _rendered_json(rows, *, prefix=None) -> dict:
+    return json.loads(stream_usage.render_json(rows, (), (), 0, None, prefix=prefix))
+
+
+class TestInvalidValueCountsPrinted:
+    def test_no_invalid_value_prints_byte_for_byte_as_today(self):
+        rows = (
+            _counted_row(),
+            _counted_row(
+                session_id="s2",
+                agent_name="b",
+                labels={"team.x": "1"},
+                request_count=1,
+                input_tokens=1,
+                output_tokens=2,
+                cache_read_tokens=3,
+                cache_creation_tokens=4,
+                cost_usd=0.25,
+                duration_ms=6,
+            ),
+        )
+
+        # CP-633: with no count anywhere, both forms are today's, byte for byte — the literals were
+        # printed by the product at 6de1734 for these same rows.
+        assert _rendered(rows, prefix="team") == _NO_COUNT_TEXT_AT_6DE1734
+        assert (
+            stream_usage.render_json(rows, (), (), 0, None, prefix="team")
+            == _NO_COUNT_JSON_AT_6DE1734
+        )
+
+    def test_old_style_row_prints_as_before(self):
+        row = stream_usage.AgentRow("s1", None, "sdk", "a", {}, ("m",), 2, 10, 20, 30, 40, 0.5, 60)
+
+        assert "(invalid:" not in _rendered((row,))
+        assert "invalid_values" not in json.dumps(_rendered_json((row,)))
+
+    @pytest.mark.parametrize(
+        "zeros", [{"cost_usd": 0}, {f: 0 for f in stream_usage.SUMMED_FIELDS}]
+    )
+    def test_a_row_whose_counts_are_all_zero_carries_no_member(self, zeros):
+        # CP-630: "A row whose counts are all 0 carries no `invalid_values` member" — a row a
+        # library caller builds with a zero count reads in JSON as the text report reads it.
+        row = _counted_row(zeros)
+
+        assert "(invalid:" not in _rendered((row,))
+        document = _rendered_json((row,))
+        assert "invalid_values" not in document["rows"][0]
+        assert "invalid_values" not in document
+
+    def test_a_zero_count_beside_a_positive_one_is_left_out_of_the_member(self):
+        (shown,) = _rendered_json((_counted_row({"cost_usd": 0, "duration_ms": 2}),))["rows"]
+
+        assert shown["invalid_values"] == {"duration_ms": 2}
+
+    def test_all_six_fields_invalid_orders_the_counts_in_the_six_field_order(self):
+        scrambled = {
+            "duration_ms": 6,
+            "cost_usd": 5,
+            "cache_creation_tokens": 4,
+            "cache_read_tokens": 3,
+            "output_tokens": 2,
+            "input_tokens": 1,
+        }
+
+        document = _rendered_json((_counted_row(scrambled),))
+        (row,) = document["rows"]
+
+        assert list(row)[-2:] == ["duration_ms", "invalid_values"]
+        assert list(row["invalid_values"]) == list(stream_usage.SUMMED_FIELDS)
+        assert list(row["invalid_values"].values()) == [1, 2, 3, 4, 5, 6]
+        assert all(type(n) is int for n in row["invalid_values"].values())
+        assert document["invalid_values"] == {"total_cost_usd": 5}
+
+    def test_a_chosen_label_prefix_keeps_its_member_position(self):
+        row = _counted_row({"cost_usd": 1}, labels={"team.x": "1"})
+
+        (shown,) = _rendered_json((row,), prefix="team")["rows"]
+
+        keys = list(shown)
+        assert keys.index("agent_name") + 1 == keys.index("team") == keys.index("models") - 1
+        assert keys[-1] == "invalid_values"
+
+    def test_text_report_adds_no_line_for_a_count(self):
+        plain = _rendered((_counted_row(),))
+        counted = _rendered((_counted_row({"input_tokens": 1, "cost_usd": 2}),))
+
+        assert len(counted.splitlines()) == len(plain.splitlines())
+        assert counted.count("(invalid:") == 3
+
+    def test_each_figure_carries_its_own_mark_and_the_total_sums_the_cost_counts(self):
+        rows = (
+            _counted_row({"cost_usd": 1}),
+            _counted_row({"cost_usd": 3, "duration_ms": 2}, session_id="s2", agent_name="b"),
+        )
+
+        lines = _rendered(rows).splitlines()
+
+        assert lines[1].endswith("cost_usd=0.500000 (invalid: 1)")
+        assert lines[2] == (
+            "    input=10 output=20 cache_read=30 cache_creation=40 duration_ms=60"
+        )
+        assert lines[4] == (
+            "    input=10 output=20 cache_read=30 cache_creation=40 duration_ms=60 (invalid: 2)"
+        )
+        assert "Total cost_usd: 1.000000 (invalid: 4)" in lines
+        assert _rendered_json(rows)["invalid_values"] == {"total_cost_usd": 4}
+        order = list(_rendered_json(rows))
+        assert order.index("invalid_values") == order.index("total_cost_usd") + 1
+
+    def test_only_the_invalid_field_is_annotated(self):
+        row = _counted_row({"duration_ms": 1})
+
+        text = _rendered((row,))
+        document = _rendered_json((row,))
+
+        assert "duration_ms=60 (invalid: 1)" in text
+        assert "cost_usd=0.500000\n" in text
+        assert "Total cost_usd: 0.500000\n" in text
+        assert document["rows"][0]["invalid_values"] == {"duration_ms": 1}
+        assert "invalid_values" not in document
+
+    @pytest.mark.parametrize("figure", ["input", "output", "cache_read", "cache_creation"])
+    def test_every_token_figure_is_marked_on_the_second_line(self, figure):
+        keys = {
+            "input": "input_tokens",
+            "output": "output_tokens",
+            "cache_read": "cache_read_tokens",
+            "cache_creation": "cache_creation_tokens",
+        }
+        row = _counted_row({keys[figure]: 7})
+
+        second = _rendered((row,)).splitlines()[2]
+
+        assert second.count("(invalid:") == 1
+        assert re.search(rf"\b{figure}=\S+ \(invalid: 7\)", second)
+
+    def test_empty_stream_and_zero_selected_rows_have_zero_total_and_no_count(self):
+        text = _rendered(())
+        document = _rendered_json(())
+
+        assert "Total cost_usd: 0.000000\n" in text
+        assert "(invalid:" not in text
+        assert document["total_cost_usd"] == 0
+        assert "invalid_values" not in document
+
+
+# ── --prefix invalid_values: refused by `agents` alone ─────────────────────
+
+
+class TestInvalidValuesPrefixIsAgentsOnly:
+    def test_prefix_cost_usd_keeps_todays_refusal(self, capsys):
+        with pytest.raises(SystemExit) as stop:
+            stream_usage.main(["--prefix", "cost_usd"])
+
+        assert stop.value.code == 2
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert captured.err.splitlines()[-2] == (
+            "ka-telemetry agents: error: --prefix 'cost_usd' is also the name of a field in "
+            "each row of the --json output, so labels under it cannot be shown; use --where to "
+            "select requests by those attributes instead"
+        )
+
+    def test_invalid_values_is_refused_by_the_command_with_its_own_words(self, tmp_path, capsys):
+        with pytest.raises(SystemExit) as stop:
+            stream_usage.main(["--dir", str(tmp_path / "never-read"), "--prefix", "invalid_values"])
+
+        assert stop.value.code == 2
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert (
+            "a field the --json output adds to a row that left out an invalid value"
+            in captured.err
+        )
+
+    @pytest.mark.parametrize("prefix", ["team", "invalid", "invalid_values2", "Invalid_Values"])
+    def test_other_prefixes_stay_accepted(self, prefix, tmp_path, capsys):
+        _write_stream(tmp_path, [_logs_line([{"event.name": "api_request", "session.id": "s"}])])
+
+        assert stream_usage.main(["--dir", str(tmp_path), "--prefix", prefix]) == 0
+
+    @pytest.mark.parametrize("name", stream_usage.ROW_KEYS)
+    def test_every_row_key_still_gets_its_existing_refusal(self, name, capsys):
+        with pytest.raises(SystemExit) as stop:
+            stream_usage.main(["--prefix", name])
+
+        assert stop.value.code == 2
+        assert (
+            f"--prefix {name!r} is also the name of a field in each row"
+            in capsys.readouterr().err
+        )
+
+    def test_shared_validation_and_the_library_still_accept_invalid_values(self):
+        assert stream_usage.check_prefix("invalid_values") is None
+        assert "invalid_values" not in stream_usage.ROW_KEYS
+        stream_usage.validate_prefix("invalid_values")
+        assert stream_usage.agent_rows((_api_request(),), prefix="invalid_values")
+
+
+# ── The totals check counts the values it could not read as numbers (CP-639–CP-645) ──────
+
+
+_UNSET = object()
+
+
+def _enveloped_attribute(key: str, value) -> dict:
+    """One OTLP attribute carrying `value` as the envelope given, whole; `_UNSET` leaves out the
+    `value` member altogether."""
+    attribute = {"key": key}
+    if value is not _UNSET:
+        attribute["value"] = value
+    return attribute
+
+
+def _raw_request(
+    session_id: str | None,
+    cost=_UNSET,
+    *,
+    event: str = "api_request",
+    query_source: str = "sdk",
+    agent: str | None = None,
+) -> dict:
+    """An `api_request` log record whose `cost_usd` arrives as the envelope `cost` (`_UNSET`: no
+    `cost_usd` attribute at all)."""
+    attributes = [
+        _attr("event.name", event),
+        _attr("query_source", query_source),
+    ]
+    if session_id is not None:
+        attributes.append(_attr("session.id", session_id))
+    if agent is not None:
+        attributes.append(_attr("agent.name", agent))
+    if cost is not _UNSET:
+        attributes.append(_enveloped_attribute("cost_usd", cost))
+    return {"attributes": attributes}
+
+
+def _raw_logs_export_line(
+    records: list[dict], resource_attributes: list[dict] | None = None
+) -> str:
+    return json.dumps(
+        {
+            "signal": "logs",
+            "received_at": "2026-09-11T00:00:00+00:00",
+            "body": {
+                "resourceLogs": [
+                    {
+                        "resource": {"attributes": resource_attributes or []},
+                        "scopeLogs": [{"logRecords": records}],
+                    }
+                ]
+            },
+        }
+    )
+
+
+def _raw_point(session_id: str | None, **members) -> dict:
+    """A cost datapoint whose `asDouble` / `asInt` members are exactly `members` (a member left
+    out of the call is absent from the point)."""
+    attributes = [_attr("query_source", "main")]
+    if session_id is not None:
+        attributes.append(_attr("session.id", session_id))
+    return {
+        "attributes": attributes,
+        "startTimeUnixNano": "1788989273064000000",
+        "timeUnixNano": "1788989273225000000",
+        **members,
+    }
+
+
+def _counted_report(
+    tmp_path: Path,
+    records: list[dict],
+    points: list[dict] | list[list[dict]] | None,
+    **report_arguments,
+) -> stream_usage.StreamReport:
+    """The report over real files: one logs export holding `records`, and one metrics export per
+    list of points (a flat list is one export); `None` leaves `metrics.jsonl` out."""
+    exports = None
+    if points is not None:
+        groups = points if points and isinstance(points[0], list) else [points]
+        exports = [_metrics_line(_cost_metric(group)) for group in groups]
+    _write_stream(tmp_path, [_raw_logs_export_line(records)], exports)
+    return stream_usage.read_report(stream_usage.build_reader(tmp_path), **report_arguments)
+
+
+def _counts(report: stream_usage.StreamReport) -> dict[str, tuple[int, int]]:
+    """Per shown session: (request-cost count, metric-point count)."""
+    return {
+        check.session_id: (check.invalid_log_cost_count, check.invalid_metric_cost_count)
+        for check in report.metrics_check
+    }
+
+
+_VALID_COST = {"doubleValue": 0.4}
+
+
+class TestSessionCheckCounts:
+    """CP-645: the two counts are read-only properties of the session check; the dataclass keeps
+    its five fields, their order and its `asdict`."""
+
+    def test_four_argument_session_check_reads_both_counts_as_zero(self):
+        check = stream_usage.SessionMetricsCheck("s", 0.5, None, None)
+
+        assert (check.invalid_log_cost_count, check.invalid_metric_cost_count) == (0, 0)
+
+    def test_session_check_asdict_and_field_order_unchanged_in_all_three_verdict_states(self):
+        checks = (
+            stream_usage.SessionMetricsCheck("s", 0.5, None, None),
+            stream_usage.SessionMetricsCheck("s", 1.0, 2.0, False),
+            stream_usage.SessionMetricsCheck("s", 1.0, 1.0, True),
+        )
+        fields = ["session_id", "log_cost_usd", "metric_cost_usd", "within_tolerance"]
+
+        for check, causes in zip(
+            checks, (tuple(_NO_METRIC_CAUSES), tuple(_MISMATCH_CAUSES), ()), strict=True
+        ):
+            assert [f.name for f in dataclasses.fields(check)] == fields + ["possible_causes"]
+            assert dataclasses.asdict(check) == {
+                "session_id": check.session_id,
+                "log_cost_usd": check.log_cost_usd,
+                "metric_cost_usd": check.metric_cost_usd,
+                "within_tolerance": check.within_tolerance,
+                "possible_causes": causes,
+            }
+            assert (check.invalid_log_cost_count, check.invalid_metric_cost_count) == (0, 0)
+
+    @pytest.mark.parametrize("name", ["invalid_log_cost_count", "invalid_metric_cost_count"])
+    def test_count_properties_cannot_be_assigned(self, name):
+        check = stream_usage.SessionMetricsCheck("s", 0.5, None, None)
+
+        assert getattr(check, name) == 0
+        with pytest.raises(AttributeError):
+            setattr(check, name, 3)
+        assert getattr(check, name) == 0
+
+    def test_direct_metrics_check_returns_zero_counts_even_when_rows_carry_invalid_costs(self):
+        rows = stream_usage.agent_rows(
+            (
+                _api_request(**{"session.id": "s"}, cost_usd="abc"),
+                _api_request(**{"session.id": "s"}),
+            )
+        )
+        (row,) = rows
+        assert row.invalid_values == {"cost_usd": 1}
+        points = stream_usage.read_metric_lines(
+            [_metrics_line(_cost_metric([_raw_point("s", asDouble="abc")]))]
+        )
+
+        (check,) = stream_usage.metrics_check(rows, points)
+
+        assert (check.invalid_log_cost_count, check.invalid_metric_cost_count) == (0, 0)
+        assert check.log_cost_usd == pytest.approx(0.1)
+        assert check.metric_cost_usd == 0.0
+
+
+class TestReportCountsInvalidValues:
+    """CP-639–CP-642 through `read_report`, over real files."""
+
+    def test_report_checks_count_invalid_request_costs_and_metric_points_per_session(
+        self, tmp_path
+    ):
+        records = [
+            _raw_request("s1", _VALID_COST),
+            _raw_request("s1", {"stringValue": "abc"}),
+            _raw_request("s1", {"boolValue": True}),
+            _raw_request("s1", _UNSET),
+            _raw_request("s1", {"stringValue": "0.1"}),
+            _raw_request("s2", {"doubleValue": 0.2}),
+        ]
+        points = [
+            _raw_point("s1", asDouble=0.3),
+            _raw_point("s1", asDouble="abc"),
+            _raw_point("s1", asDouble=True),
+            _raw_point("s1"),
+            _raw_point("s1", asDouble=None),
+            _raw_point("s1", asInt="0.2"),
+            _raw_point("s2", asDouble="xyz"),
+        ]
+
+        report = _counted_report(tmp_path, records, points)
+
+        s1, s2 = report.metrics_check
+        assert (s1.session_id, s1.invalid_log_cost_count, s1.invalid_metric_cost_count) == (
+            "s1", 2, 2,
+        )
+        assert s1.log_cost_usd == pytest.approx(0.5)
+        assert s1.metric_cost_usd == pytest.approx(0.5)
+        assert (s2.session_id, s2.invalid_log_cost_count, s2.invalid_metric_cost_count) == (
+            "s2", 0, 1,
+        )
+        assert s2.log_cost_usd == pytest.approx(0.2)
+        assert s2.metric_cost_usd == 0.0
+        assert s2.within_tolerance is False
+
+    @pytest.mark.parametrize(
+        "members, counted, value",
+        [
+            ({}, 0, 0.0),
+            ({"asDouble": None}, 0, 0.0),
+            ({"asInt": None}, 0, 0.0),
+            ({"asDouble": None, "asInt": None}, 0, 0.0),
+            ({"asDouble": None, "asInt": 5}, 0, 5.0),
+            ({"asDouble": None, "asInt": "7"}, 0, 7.0),
+            ({"asDouble": None, "asInt": "abc"}, 1, 0.0),
+            ({"asInt": "abc"}, 1, 0.0),
+            ({"asDouble": 0.25, "asInt": "abc"}, 0, 0.25),
+            ({"asDouble": "abc", "asInt": 5}, 1, 0.0),
+            ({"asDouble": "0.5", "asInt": 5}, 0, 0.5),
+            ({"asDouble": False}, 1, 0.0),
+            ({"asDouble": True, "asInt": 5}, 1, 0.0),
+            ({"asDouble": 0}, 0, 0.0),
+            ({"asDouble": ""}, 1, 0.0),
+            ({"asDouble": [1]}, 1, 0.0),
+            ({"asDouble": {"x": 1}}, 1, 0.0),
+            ({"asInt": True}, 1, 0.0),
+            ({"asInt": False}, 1, 0.0),
+            ({"asInt": 0}, 0, 0.0),
+            ({"asInt": ""}, 1, 0.0),
+            ({"asInt": [2]}, 1, 0.0),
+            ({"asInt": {"x": 2}}, 1, 0.0),
+        ],
+    )
+    def test_report_metric_selection_cases(self, tmp_path, members, counted, value):
+        point = _raw_point("s1", **members)
+
+        report = _counted_report(tmp_path, [_raw_request("s1", _VALID_COST)], [point])
+
+        assert _counts(report) == {"s1": (0, counted)}
+        (check,) = report.metrics_check
+        assert check.metric_cost_usd == pytest.approx(value)
+        (legacy,) = stream_usage.read_metric_lines(
+            [_metrics_line(_cost_metric([point]))]
+        )
+        assert legacy.value == pytest.approx(value)
+
+    def test_valid_numbers_are_added_and_not_counted(self, tmp_path):
+        numbers = [
+            _raw_point("s1", asDouble=1.5),
+            _raw_point("s1", asDouble=0),
+            _raw_point("s1", asDouble=-2),
+            _raw_point("s1", asDouble="0.1"),
+            _raw_point("s1", asDouble="43"),
+            _raw_point("s1", asDouble="1e3"),
+            _raw_point("s1", asInt="0.2"),
+        ]
+        costs = [
+            {"doubleValue": 1.5},
+            {"doubleValue": 0},
+            {"doubleValue": -2},
+            {"stringValue": "0.1"},
+            {"stringValue": "43"},
+            {"stringValue": "1e3"},
+            {"intValue": "7"},
+        ]
+        records = [_raw_request("s1", cost) for cost in costs]
+
+        report = _counted_report(tmp_path, records, numbers)
+
+        (check,) = report.metrics_check
+        assert _counts(report) == {"s1": (0, 0)}
+        assert check.metric_cost_usd == pytest.approx(1042.8)
+        assert check.log_cost_usd == pytest.approx(1049.6)
+
+    def test_nan_and_inf_strings_are_numbers_to_today_s_rule_and_are_not_counted(self, tmp_path):
+        records = [
+            _raw_request("s-nan", {"stringValue": "nan"}),
+            _raw_request("s-inf", {"stringValue": "inf"}),
+        ]
+        points = [_raw_point("s-nan", asDouble="nan"), _raw_point("s-inf", asDouble="inf")]
+
+        report = _counted_report(tmp_path, records, points)
+
+        assert _counts(report) == {"s-inf": (0, 0), "s-nan": (0, 0)}
+        by_session = {check.session_id: check for check in report.metrics_check}
+        assert math.isnan(by_session["s-nan"].metric_cost_usd)
+        assert math.isinf(by_session["s-inf"].metric_cost_usd)
+
+    @pytest.mark.parametrize(
+        "cost",
+        [
+            {"intValue": "oops"},
+            _UNSET,
+            None,
+            {},
+            {"unsupported": 1},
+            {"doubleValue": [1.0]},
+            {"stringValue": {"x": 1}},
+            {"stringValue": ""},
+            {"stringValue": "abc"},
+            {"boolValue": True},
+            {"boolValue": False},
+        ],
+        ids=[
+            "malformed-int", "no-value-member", "null-value", "empty-envelope", "unsupported",
+            "list", "object", "empty-string", "string", "true", "false",
+        ],
+    )
+    def test_request_cost_forms_counted_as_invalid(self, tmp_path, cost):
+        record = {
+            "attributes": [
+                _attr("event.name", "api_request"),
+                _attr("session.id", "s1"),
+                _enveloped_attribute("cost_usd", cost),
+            ]
+        }
+        records = [_raw_request("s1", _VALID_COST), record]
+
+        report = _counted_report(tmp_path, records, [_raw_point("s1", asDouble=0.4)])
+
+        assert _counts(report) == {"s1": (1, 0)}
+        (check,) = report.metrics_check
+        assert check.log_cost_usd == pytest.approx(0.4)
+
+    def test_request_cost_in_resource_attributes_only_is_absent_and_other_events_are_ignored(
+        self, tmp_path
+    ):
+        records = [
+            _raw_request("s1", _VALID_COST),
+            _raw_request("s1", _UNSET),
+            _raw_request("s1", {"stringValue": "abc"}, event="user_prompt"),
+        ]
+        _write_stream(
+            tmp_path,
+            [
+                _raw_logs_export_line(
+                    records, [_enveloped_attribute("cost_usd", {"stringValue": "abc"})]
+                )
+            ],
+            [_metrics_line(_cost_metric([_raw_point("s1", asDouble=0.4)]))],
+        )
+
+        report = stream_usage.read_report(stream_usage.build_reader(tmp_path))
+
+        assert _counts(report) == {"s1": (0, 0)}
+        assert report.metrics_check[0].log_cost_usd == pytest.approx(0.4)
+
+    def test_counts_accumulate_across_exports_and_never_bleed_between_sessions(self, tmp_path):
+        records = [
+            _raw_request("s1", {"stringValue": "abc"}),
+            _raw_request("s2", _VALID_COST),
+            _raw_request("s2", {"boolValue": True}),
+            _raw_request("s3", _VALID_COST),
+        ]
+        exports = [
+            [_raw_point("s1", asDouble="abc"), _raw_point("s2", asDouble=0.4)],
+            [_raw_point("s1", asDouble=False), _raw_point("s1", asDouble=0.1)],
+            [
+                _raw_point(None, asDouble="abc"),
+                _raw_point("ghost", asDouble="abc"),
+                _raw_point("s2", asDouble="abc"),
+            ],
+        ]
+
+        report = _counted_report(tmp_path, records, exports)
+
+        assert _counts(report) == {"s1": (1, 2), "s2": (1, 1), "s3": (0, 0)}
+        assert report.metrics_check[2].metric_cost_usd is None
+
+    def test_where_and_prefix_do_not_narrow_counts_within_a_shown_session(self, tmp_path):
+        records = [
+            _raw_request("s1", _VALID_COST, query_source="sdk", agent="a"),
+            _raw_request("s1", {"stringValue": "abc"}, query_source="other", agent="b"),
+            _raw_request("s1", {"boolValue": False}, query_source="other", agent="c"),
+            _raw_request("s1", {"boolValue": True}, query_source="other", agent="c"),
+            _raw_request("s2", {"stringValue": "abc"}, query_source="other"),
+        ]
+        points = [_raw_point("s1", asDouble=0.4)]
+
+        narrowed = _counted_report(
+            tmp_path, records, points, where=(("query_source", "sdk"),), prefix="team"
+        )
+
+        assert [row.session_id for row in narrowed.rows] == ["s1"]
+        assert narrowed.rows[0].invalid_values == {}
+        assert _counts(narrowed) == {"s1": (3, 0)}
+
+    def test_session_with_only_invalid_or_valueless_points_keeps_a_metric_figure(self, tmp_path):
+        records = [_raw_request("invalid", _VALID_COST), _raw_request("valueless", _VALID_COST)]
+        records.append(_raw_request("none", _VALID_COST))
+        points = [
+            _raw_point("invalid", asDouble="x"),
+            _raw_point("invalid", asDouble=True),
+            _raw_point("valueless"),
+            _raw_point("valueless", asDouble=None),
+        ]
+
+        report = _counted_report(tmp_path, records, points)
+
+        by_session = {check.session_id: check for check in report.metrics_check}
+        assert by_session["invalid"].metric_cost_usd == 0.0
+        assert by_session["valueless"].metric_cost_usd == 0.0
+        assert by_session["none"].metric_cost_usd is None
+        assert by_session["invalid"].within_tolerance is False
+        assert _counts(report) == {"invalid": (0, 2), "none": (0, 0), "valueless": (0, 0)}
+
+    def test_filtered_out_sessions_and_streams_without_requests_give_no_count_entries(
+        self, tmp_path
+    ):
+        records = [
+            _raw_request("s1", {"stringValue": "abc"}, query_source="sdk"),
+            _raw_request("s2", {"stringValue": "abc"}, query_source="other"),
+        ]
+        points = [_raw_point("s1", asDouble="x"), _raw_point("s2", asDouble="x")]
+
+        report = _counted_report(
+            tmp_path, records, points, where=(("query_source", "sdk"),)
+        )
+
+        assert _counts(report) == {"s1": (1, 1)}
+
+        quiet = tmp_path / "quiet"
+        quiet.mkdir()
+        empty = _counted_report(
+            quiet, [_raw_request("s1", {"stringValue": "abc"}, event="user_prompt")], points
+        )
+        assert empty.metrics_check == ()
+
+    def test_missing_metrics_file_still_carries_request_cost_counts(self, tmp_path):
+        records = [_raw_request("s1", _VALID_COST), _raw_request("s1", {"stringValue": "abc"})]
+
+        report = _counted_report(tmp_path, records, None)
+
+        assert report.metrics_state is stream_usage.ReadState.NOTHING_RECEIVED
+        assert _counts(report) == {"s1": (1, 0)}
+        assert report.metrics_check[0].metric_cost_usd is None
+
+    def test_unreadable_lines_are_not_counted_as_invalid_values(self, tmp_path):
+        records = [_raw_request("s1", _VALID_COST), _raw_request("s1", {"stringValue": "abc"})]
+        _write_stream(
+            tmp_path,
+            ["not json {", _raw_logs_export_line(records), '"a string"'],
+            [
+                "also not json",
+                _metrics_line(_cost_metric([_raw_point("s1", asDouble="abc")])),
+                '{"body": {}}',
+            ],
+        )
+
+        report = stream_usage.read_report(stream_usage.build_reader(tmp_path))
+
+        assert (report.skipped_lines, report.skipped_metric_lines) == (2, 2)
+        assert _counts(report) == {"s1": (1, 1)}
+
+    def test_diagnostics_are_independent_between_reads(self, tmp_path):
+        first, second = tmp_path / "first", tmp_path / "second"
+        first.mkdir()
+        second.mkdir()
+        invalid = _counted_report(
+            first,
+            [_raw_request("s1", {"stringValue": "abc"})],
+            [_raw_point("s1", asDouble="abc")],
+        )
+        clean = _counted_report(
+            second, [_raw_request("s1", _VALID_COST)], [_raw_point("s1", asDouble=0.4)]
+        )
+        again = stream_usage.read_report(stream_usage.build_reader(first))
+
+        assert _counts(invalid) == {"s1": (1, 1)}
+        assert _counts(clean) == {"s1": (0, 0)}
+        assert _counts(again) == {"s1": (1, 1)}
+
+    def test_unopenable_metrics_make_no_checks_and_no_count_only_result(self, tmp_path):
+        line = _raw_logs_export_line([_raw_request("s1", {"stringValue": "abc"})])
+        _write_stream(tmp_path, [line])
+        (tmp_path / "metrics.jsonl").mkdir()
+
+        result = stream_usage.read_report_result(stream_usage.build_reader(tmp_path))
+
+        assert result.state is stream_usage.ReadState.READ
+        assert result.report.metrics_state is stream_usage.ReadState.UNOPENABLE
+        assert result.report.metrics_check is None
+
+    def test_uninspectable_metrics_make_no_checks_and_no_count_only_result(self, tmp_path):
+        sealed = tmp_path / "sealed"
+        sealed.mkdir()
+        line = _raw_logs_export_line([_raw_request("s1", {"stringValue": "abc"})])
+        _write_stream(sealed, [line])
+
+        class SealedMetrics(stream_usage.Files):
+            def read_outcome(self, path):
+                if path.name == stream_usage.METRICS_FILE:
+                    return stream_usage.ReadOutcome(
+                        state=stream_usage.ReadState.UNINSPECTABLE, reason="denied"
+                    )
+                return super().read_outcome(path)
+
+        reader = stream_usage.Reader(files=SealedMetrics(), directory=sealed)
+        report = stream_usage.read_report(reader)
+
+        assert report.metrics_state is stream_usage.ReadState.UNINSPECTABLE
+        assert report.metrics_check is None
+
+
+# ── The Agent-tool agents rows count the values they left out ───────────────
+
+COMPLETED_FIELDS = ("duration_ms", "total_tool_uses")
+COUNT_PROPERTIES = {
+    "duration_ms": "invalid_duration_ms_count",
+    "total_tool_uses": "invalid_total_tool_uses_count",
+}
+
+
+def _completed_attributes(**envelopes) -> list[dict]:
+    """A `subagent_completed` record's attribute list, each value in the envelope the test names."""
+    attributes = [
+        _attr("event.name", "subagent_completed"),
+        _attr("session.id", "s1"),
+        _attr("agent_type", "Explore"),
+    ]
+    attributes += [{"key": key, "value": envelope} for key, envelope in envelopes.items()]
+    return attributes
+
+
+def _rows_read(*attribute_lists: list[dict]) -> tuple[stream_usage.SubagentRow, ...]:
+    read = stream_usage.read_log_lines([_raw_logs_line(list(attribute_lists))])
+    assert read.skipped == 0
+    return stream_usage.subagent_rows(read.records)
+
+
+def _row_counts(row: stream_usage.SubagentRow) -> tuple[int, int]:
+    return row.invalid_duration_ms_count, row.invalid_total_tool_uses_count
+
+
+class TestSubagentRowCounts:
+    @pytest.mark.parametrize("field", COMPLETED_FIELDS)
+    def test_a_non_parsing_string_beside_a_valid_value_is_counted_for_that_field_only(self, field):
+        other = next(name for name in COMPLETED_FIELDS if name != field)
+        (row,) = _rows_read(
+            _completed_attributes(**{field: {"intValue": 40}, other: {"intValue": 2}}),
+            _completed_attributes(**{field: {"stringValue": "slow"}, other: {"intValue": 3}}),
+        )
+
+        assert getattr(row, field) == 40
+        assert getattr(row, COUNT_PROPERTIES[field]) == 1
+        assert getattr(row, COUNT_PROPERTIES[other]) == 0
+        assert row.count == 2
+
+    @pytest.mark.parametrize("field", COMPLETED_FIELDS)
+    @pytest.mark.parametrize("bad", [True, False], ids=["true", "false"])
+    def test_a_bool_value_is_counted_for_each_field_separately(self, field, bad):
+        (row,) = _rows_read(
+            _completed_attributes(**{field: {"intValue": 9}}),
+            _completed_attributes(**{field: {"boolValue": bad}}),
+        )
+
+        assert getattr(row, field) == 9
+        assert getattr(row, COUNT_PROPERTIES[field]) == 1
+
+    @pytest.mark.parametrize(
+        "envelope",
+        [
+            pytest.param({"stringValue": ""}, id="empty-string"),
+            pytest.param(None, id="explicit-null"),
+            pytest.param({"intValue": "abc"}, id="int-value-holding-no-number"),
+            pytest.param({"unknownValue": 3}, id="object-with-none-of-the-four-keys"),
+            pytest.param([1, 2], id="list"),
+            pytest.param({"nested": {"a": 1}}, id="object"),
+        ],
+    )
+    @pytest.mark.parametrize("field", COMPLETED_FIELDS)
+    def test_each_non_number_shape_is_counted(self, field, envelope):
+        (row,) = _rows_read(
+            _completed_attributes(**{field: {"intValue": 4}}),
+            _completed_attributes(**{field: envelope}),
+        )
+
+        assert getattr(row, field) == 4
+        assert getattr(row, COUNT_PROPERTIES[field]) == 1
+
+    @pytest.mark.parametrize("field", COMPLETED_FIELDS)
+    def test_valid_numbers_and_numeric_strings_add_to_the_figure_with_no_count(self, field):
+        values = [0, -3, 2.5, "43", "2.5", "1e3", "7"]
+        records = [_subagent_completed(**{field: value}) for value in values]
+
+        (row,) = stream_usage.subagent_rows(tuple(records))
+
+        assert getattr(row, field) == pytest.approx(0 - 3 + 2.5 + 43 + 2.5 + 1000 + 7)
+        assert getattr(row, COUNT_PROPERTIES[field]) == 0
+
+    @pytest.mark.parametrize("field", COMPLETED_FIELDS)
+    def test_nan_and_inf_strings_are_read_as_today_with_no_finite_number_rule(self, field):
+        record_nan = _subagent_completed(**{field: "nan"})
+        record_inf = _subagent_completed(**{field: "inf"})
+
+        (row,) = stream_usage.subagent_rows((record_nan, record_inf))
+
+        assert getattr(row, COUNT_PROPERTIES[field]) == 0
+        read_as_today = stream_usage.as_number("nan") + stream_usage.as_number("inf")
+        assert str(getattr(row, field)) == str(read_as_today)
+
+    def test_an_invalid_record_still_counts_toward_the_row_count(self):
+        (row,) = stream_usage.subagent_rows(
+            (_subagent_completed(), _subagent_completed(duration_ms="slow"))
+        )
+
+        assert row.count == 2
+        assert _row_counts(row) == (1, 0)
+
+    def test_absent_field_adds_nothing_and_counts_nothing(self):
+        no_duration = _subagent_completed(total_tool_uses=2)
+        del no_duration.record_attrs["duration_ms"]
+        no_tools = _subagent_completed(duration_ms=40)
+        del no_tools.record_attrs["total_tool_uses"]
+
+        (row,) = stream_usage.subagent_rows(
+            (_subagent_completed(duration_ms=100, total_tool_uses=3), no_duration, no_tools)
+        )
+
+        assert (row.duration_ms, row.total_tool_uses) == (140, 5)
+        assert _row_counts(row) == (0, 0)
+
+    @pytest.mark.parametrize("field", COMPLETED_FIELDS)
+    def test_a_field_carried_only_by_resource_attributes_is_absent(self, field):
+        record = _record(
+            {"event.name": "subagent_completed", "session.id": "s1", "agent_type": "Explore"},
+            resource_attrs={field: "abc"},
+        )
+
+        (row,) = stream_usage.subagent_rows((record,))
+
+        assert getattr(row, field) == 0
+        assert _row_counts(row) == (0, 0)
+
+    def test_all_invalid_or_absent_group_shows_zero_figures(self):
+        absent = _subagent_completed(total_tool_uses=True)
+        del absent.record_attrs["duration_ms"]
+
+        (row,) = stream_usage.subagent_rows(
+            (_subagent_completed(duration_ms="x", total_tool_uses=None), absent)
+        )
+
+        assert (row.duration_ms, row.total_tool_uses) == (0, 0)
+        assert _row_counts(row) == (1, 2)
+
+    def test_counts_are_kept_per_session_and_agent_type_in_todays_order(self):
+        records = (
+            _subagent_completed(duration_ms="x", agent_type="b"),
+            _subagent_completed(**{"session.id": "s0"}, total_tool_uses="y", agent_type="a"),
+            _subagent_completed(agent_type="b"),
+            _record({"event.name": "subagent_completed", "duration_ms": "z"}),
+        )
+
+        rows = stream_usage.subagent_rows(records)
+
+        assert [(r.session_id, r.agent_type, _row_counts(r)) for r in rows] == [
+            (None, None, (1, 0)),
+            ("s0", "a", (0, 1)),
+            ("sid-1", "b", (1, 0)),
+        ]
+
+    def test_other_record_kinds_and_total_tokens_add_no_count(self):
+        request = _api_request(duration_ms="slow")
+        tokens = _subagent_completed(total_tokens="many")
+
+        (row,) = stream_usage.subagent_rows((request, tokens))
+
+        assert row.count == 1
+        assert _row_counts(row) == (0, 0)
+
+    @pytest.mark.parametrize(
+        "where",
+        [
+            pytest.param((("session.id", "s1"),), id="session-filter"),
+            # A request-only attribute: the completed records carry none, so a count taken over
+            # the records the filter matches would differ from the row's whole-group count.
+            pytest.param((("query_source", "main"),), id="request-only-filter"),
+        ],
+    )
+    def test_row_counts_do_not_depend_on_a_where_selection(self, tmp_path, where):
+        line = _raw_logs_line(
+            [
+                _completed_attributes(duration_ms={"stringValue": "slow"}),
+                _completed_attributes(total_tool_uses={"boolValue": True}),
+                _attr_request_only("s1", query_source="main"),
+                _attr_request_only("s1", query_source="other"),
+                _attr_request_only("s2", query_source="other"),
+            ]
+        )
+        reader_dir = _write_stream(tmp_path, [line])
+        whole = stream_usage.subagent_rows(stream_usage.read_log_lines([line]).records)
+
+        narrowed = stream_usage.read_report(
+            stream_usage.build_reader(reader_dir), where=where
+        ).subagent_rows
+
+        assert [_row_counts(r) for r in narrowed] == [_row_counts(r) for r in whole] == [(1, 1)]
+        assert [r.count for r in narrowed] == [2]
+
+    def test_five_argument_subagent_row_still_builds_with_zero_counts(self):
+        row = stream_usage.SubagentRow("s", "Explore", 1, 0, 0)
+
+        assert _row_counts(row) == (0, 0)
+
+    def test_subagent_row_counts_stay_out_of_asdict_and_replace(self):
+        clean = stream_usage.SubagentRow("s", "Explore", 1, 5, 2)
+        counted = stream_usage.SubagentRow(
+            "s", "Explore", 3, 5, 2, duration_ms_invalid=2, total_tool_uses_invalid=1
+        )
+        keys = ["session_id", "agent_type", "count", "duration_ms", "total_tool_uses"]
+
+        assert list(dataclasses.asdict(clean)) == keys
+        assert list(dataclasses.asdict(counted)) == keys
+        assert dataclasses.asdict(counted) == dataclasses.asdict(clean) | {"count": 3}
+        assert _row_counts(counted) == (2, 1)
+        for name in COUNT_PROPERTIES.values():
+            with pytest.raises(AttributeError):
+                setattr(counted, name, 9)
+
+
+def _attr_request_only(session: str, *, query_source: str) -> list[dict]:
+    """An `api_request` record's attribute list: its session and a `query_source`, which no
+    `subagent_completed` record carries."""
+    return [
+        _attr("event.name", "api_request"),
+        _attr("session.id", session),
+        _attr("query_source", query_source),
+    ]
+
+
+# ── `--compare`: each side names the values it could not read as numbers ───
+#
+# CP-667–CP-670, CP-674. A side's figure stays the sum of the values that were numbers and its mean
+# stays that sum over the side's runs; beside them the side carries, per summed field, how many of
+# its own retained requests held a present value that was not a number.
+
+COMPARE_ARM = "kensai.arm"
+
+
+def _arm_request(arm: str, session: str = "sid-1", **overrides) -> stream_usage.LogRecord:
+    return _api_request(**{COMPARE_ARM: arm, "session.id": session}, **overrides)
+
+
+def _arm_attributes(arm: str, **envelopes) -> list[dict]:
+    """The attributes of one `api_request` of side `arm` whose summed fields carry the envelopes
+    given."""
+    return [*_request_attributes(**envelopes), _attr(COMPARE_ARM, arm)]
+
+
+class TestCompareInvalidCounts:
+    @pytest.mark.parametrize("field", SUMMED_FIELDS)
+    def test_compare_side_counts_each_figure_separately(self, field):
+        records = (
+            _arm_request("A", "s1"),
+            _arm_request("A", "s2", **{field: "abc"}),
+            _arm_request("B", "s3"),
+        )
+
+        result = stream_usage.compare(records, COMPARE_ARM, "A", "B")
+
+        assert result.a.invalid_values == {field: 1}
+        assert result.b.invalid_values == {}
+
+    @pytest.mark.parametrize(
+        "envelope",
+        [
+            pytest.param(None, id="present-null"),
+            pytest.param({"boolValue": True}, id="true"),
+            pytest.param({"boolValue": False}, id="false"),
+            pytest.param({"stringValue": ""}, id="empty-string"),
+            pytest.param({"stringValue": "abc"}, id="non-numeric-string"),
+            pytest.param({"intValue": "abc"}, id="int-value-holding-no-number"),
+            pytest.param({"unknownValue": 3}, id="object-with-none-of-the-four-keys"),
+            pytest.param([1, 2], id="list"),
+            pytest.param({"nested": {"a": 1}}, id="object"),
+        ],
+    )
+    @pytest.mark.parametrize("field", SUMMED_FIELDS)
+    def test_compare_counts_every_unreadable_shape_through_the_real_decoder(
+        self, field, envelope
+    ):
+        line = _raw_logs_line(
+            [
+                _arm_attributes("A", **{field: envelope}),
+                _arm_attributes("A", **{field: {"intValue": 4}}),
+            ]
+        )
+
+        read = stream_usage.read_log_lines([line])
+        result = stream_usage.compare(read.records, COMPARE_ARM, "A", "B")
+
+        assert read.skipped == 0
+        assert getattr(result.a.totals, field) == 4
+        assert result.a.invalid_values == {field: 1}
+
+    def test_invalid_value_adds_nothing_and_still_counts_toward_runs(self):
+        records = (
+            _arm_request("A", "s1", cost_usd=0.4),
+            _arm_request("A", "s2", cost_usd="abc"),
+        )
+
+        side = stream_usage.compare(records, COMPARE_ARM, "A", "B").a
+
+        assert side.run_count == 2
+        assert side.totals.cost_usd == pytest.approx(0.4)
+        assert side.mean_per_run.cost_usd == pytest.approx(0.2)
+        assert side.mean_cost_per_run == pytest.approx(0.2)
+        assert side.invalid_values == {"cost_usd": 1}
+
+    def test_all_invalid_or_all_absent_figure_has_zero_total_and_mean(self):
+        records = (
+            _arm_request("A", "s1", input_tokens="abc"),
+            _arm_request("A", "s2", input_tokens=True),
+        )
+        for record in records:
+            del record.record_attrs["output_tokens"]
+
+        side = stream_usage.compare(records, COMPARE_ARM, "A", "B").a
+
+        assert side.run_count == 2
+        assert (side.totals.input_tokens, side.mean_per_run.input_tokens) == (0, 0)
+        assert (side.totals.output_tokens, side.mean_per_run.output_tokens) == (0, 0)
+        assert side.invalid_values == {"input_tokens": 2}
+
+    def test_counts_above_one(self):
+        records = tuple(
+            _arm_request("A", f"s{n}", duration_ms="slow", cost_usd=True) for n in range(3)
+        ) + (_arm_request("A", "s9"),)
+
+        side = stream_usage.compare(records, COMPARE_ARM, "A", "B").a
+
+        assert side.invalid_values == {"cost_usd": 3, "duration_ms": 3}
+
+    def test_counts_cover_only_the_sides_own_retained_records(self):
+        other_event = _record(
+            {"event.name": "user_prompt", COMPARE_ARM: "A", "cost_usd": "abc"}
+        )
+        records = (
+            _arm_request("A", "s1", speed="normal"),
+            _arm_request("A", "s2", speed="fast", cost_usd="abc"),
+            _arm_request("C", "s3", speed="normal", cost_usd="abc"),
+            other_event,
+        )
+
+        result = stream_usage.compare(
+            records, COMPARE_ARM, "A", "B", where=(("speed", "normal"),)
+        )
+
+        assert result.a.run_count == 1
+        assert result.a.invalid_values == {}
+        assert result.b is None
+
+    def test_equal_a_and_b_values_give_equal_counts_and_figures(self):
+        records = (_arm_request("A", "s1"), _arm_request("A", "s2", cost_usd="abc"))
+
+        result = stream_usage.compare(records, COMPARE_ARM, "A", "A")
+
+        assert result.a == result.b
+        assert result.a.invalid_values == result.b.invalid_values == {"cost_usd": 1}
+
+    def test_counts_follow_prefix_run_identity(self):
+        records = (
+            _api_request(**{"team.arm": "A", "team.run_id": "r1", "session.id": "s1"}),
+            _api_request(
+                **{"team.arm": "A", "team.run_id": "r1", "session.id": "s2"}, cost_usd="abc"
+            ),
+        )
+
+        side = stream_usage.compare(records, "team.arm", "A", "B", prefix="team").a
+
+        assert side.run_count == 1
+        assert side.mean_per_run.cost_usd == side.totals.cost_usd == pytest.approx(0.1)
+        assert side.invalid_values == {"cost_usd": 1}
+
+    @pytest.mark.parametrize("text", ["nan", "inf"])
+    def test_non_finite_numeric_strings_keep_today_acceptance_with_no_count(self, text):
+        records = (_arm_request("A", "s1", cost_usd=text),)
+
+        side = stream_usage.compare(records, COMPARE_ARM, "A", "B").a
+
+        assert side.invalid_values == {}
+        assert math.isnan(side.totals.cost_usd) is (text == "nan")
+        assert (side.totals.cost_usd == math.inf) is (text == "inf")
+
+    def test_compare_group_built_with_five_arguments_reads_zero_counts(self):
+        totals = stream_usage.CompareTotals(input_tokens=3)
+        means = stream_usage.CompareTotals(input_tokens=1.5)
+        positional = stream_usage.CompareGroup("A", 2, totals, means, 0.25)
+        keyword = stream_usage.CompareGroup(
+            value="A", run_count=2, totals=totals, mean_per_run=means, mean_cost_per_run=0.25
+        )
+
+        assert positional == keyword
+        assert [f.name for f in dataclasses.fields(positional)][:5] == [
+            "value", "run_count", "totals", "mean_per_run", "mean_cost_per_run",
+        ]
+        assert (positional.value, positional.run_count) == ("A", 2)
+        assert positional.mean_cost_per_run == 0.25
+        assert [positional.invalid_values.get(field, 0) for field in SUMMED_FIELDS] == [0] * 6
+
+    def test_default_count_dictionaries_are_independent(self):
+        totals = stream_usage.CompareTotals()
+        first = stream_usage.CompareGroup("A", 1, totals, totals, 0.0)
+        second = stream_usage.CompareGroup("B", 1, totals, totals, 0.0)
+
+        first.invalid_values["cost_usd"] = 1
+
+        assert second.invalid_values == {}
+
+    def test_compare_totals_keeps_exactly_six_fields(self):
+        assert [f.name for f in dataclasses.fields(stream_usage.CompareTotals)] == list(
+            SUMMED_FIELDS
+        )
+
+    def test_a_side_and_its_comparison_stay_hashable_as_before(self):
+        """CP-674 and the spec's Gap 8: the counts are added, so a side and the comparison holding
+        it can still be hashed — a set member or a dict key — as they could before the counts."""
+        records = (_arm_request("A", "s1"), _arm_request("A", "s2", cost_usd="abc"))
+        result = stream_usage.compare(records, COMPARE_ARM, "A", "A")
+        totals = stream_usage.CompareTotals()
+        five_arguments = stream_usage.CompareGroup("A", 1, totals, totals, 0.0)
+
+        assert result.a.invalid_values == {"cost_usd": 1}
+        assert hash(result.a) == hash(result.b)
+        assert len({result.a, result.b}) == 1
+        assert {result: "seen"}[result] == "seen"
+        assert {five_arguments: "side"}[
+            stream_usage.CompareGroup("A", 1, totals, totals, 0.0)
+        ] == "side"
+
+    def test_read_report_comparison_carries_the_same_counts_as_compare(self, tmp_path):
+        lines = [
+            _raw_logs_line(
+                [
+                    _arm_attributes("A", cost_usd={"stringValue": "abc"}),
+                    _arm_attributes("A", input_tokens={"boolValue": True}),
+                    _arm_attributes("B", cost_usd={"doubleValue": 0.5}),
+                ]
+            )
+        ]
+        _write_stream(tmp_path, lines)
+
+        report = stream_usage.read_report(
+            stream_usage.build_reader(tmp_path), comparison=(COMPARE_ARM, "A", "B")
+        )
+
+        direct = stream_usage.compare(
+            stream_usage.read_log_lines(lines).records, COMPARE_ARM, "A", "B"
+        )
+        assert report.compare == direct
+        assert report.compare.a.invalid_values == {"cost_usd": 1, "input_tokens": 1}
+        assert report.compare.b.invalid_values == {}
+
+
+def _built_side(label: str, **counts) -> stream_usage.CompareGroup:
+    """A side built in code: one run, a cost of 0.5 and `counts` as its `invalid_values`."""
+    totals = stream_usage.CompareTotals(input_tokens=3, cost_usd=0.5)
+    return stream_usage.CompareGroup(
+        value=label,
+        run_count=1,
+        totals=totals,
+        mean_per_run=totals,
+        mean_cost_per_run=0.5,
+        **({"invalid_values": counts} if counts else {}),
+    )
+
+
+class TestCompareCountsRendering:
+    def test_clean_side_built_with_zero_counts_prints_as_today(self):
+        no_counts = stream_usage.CompareResult(
+            "arm", "A", "B", _built_side("A"), _built_side("B"), 0.0, 1.0
+        )
+        zero_counts = stream_usage.CompareResult(
+            "arm",
+            "A",
+            "B",
+            _built_side("A", **dict.fromkeys(SUMMED_FIELDS, 0)),
+            _built_side("B", **dict.fromkeys(SUMMED_FIELDS, 0)),
+            0.0,
+            1.0,
+        )
+
+        assert stream_usage.render((), (), None, 0, zero_counts) == stream_usage.render(
+            (), (), None, 0, no_counts
+        )
+        assert stream_usage.render_json((), (), None, 0, zero_counts) == stream_usage.render_json(
+            (), (), None, 0, no_counts
+        )
+        assert "(invalid:" not in stream_usage.render((), (), None, 0, zero_counts)
+        assert "invalid_values" not in stream_usage.render_json((), (), None, 0, zero_counts)
+
+    def test_json_count_order_ignores_dictionary_insertion_order(self):
+        counts = {name: (n % 2) * 2 for n, name in enumerate(reversed(SUMMED_FIELDS))}
+        side = _built_side("A", **counts)
+        result = stream_usage.CompareResult("arm", "A", "B", side, _built_side("B"), 0.0, 1.0)
+
+        compared = json.loads(stream_usage.render_json((), (), None, 0, result))["compare"]["a"]
+
+        positive = [name for name in SUMMED_FIELDS if counts[name] > 0]
+        assert positive and len(positive) < len(SUMMED_FIELDS)
+        assert list(compared)[-2:] == ["mean_per_run", "invalid_values"]
+        assert list(compared["invalid_values"]) == positive
+        assert compared["invalid_values"] == {name: counts[name] for name in positive}
+        assert list(compared["totals"]) == list(SUMMED_FIELDS)
+        assert list(compared["mean_per_run"]) == list(SUMMED_FIELDS)
+        assert "invalid_values" not in json.loads(
+            stream_usage.render_json((), (), None, 0, result)
+        )["compare"]["b"]

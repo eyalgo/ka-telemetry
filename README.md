@@ -6,7 +6,7 @@ How to turn telemetry on, read each report, remove old records and keep the rece
 
 ## Built by KensaiApp
 
-ka-telemetry was built end to end by [KensaiApp](https://github.com/eyalgo/kensaiapp), a system of AI roles that carries a software change from first ask to merged code on top of Claude Code. Its roles wrote the requirements, the code, the tests and this README; a person made the decisions.
+ka-telemetry was built end to end by [KensaiApp](https://github.com/eyalgo/kensaiapp), a system of AI roles that carries a software change from first ask to merged code on top of Claude Code. Its roles wrote the requirements, the code, the tests and this README; a person made the decisions. What that cost in Claude runs, tokens and money is in [`docs/build_cost.md`](docs/build_cost.md).
 
 ## Install
 
@@ -192,4 +192,6 @@ ka-telemetry is at 0.x, and until 1.0.0 anything may change. kensaiapp now runs 
 
 What each release does is in [`release_notes/`](release_notes/), one file per release.
 
-ka-telemetry does not yet state in every report what it read and what it could not read and why, or name every session that has no cost metric to check against and say it received no cost metric for it.
+The totals check names every session that has no cost metric to check against, says it received none for it, and gives the causes it cannot tell apart without claiming one, which came in with commit `c83c77761`.
+
+ka-telemetry does not yet state in every report what it read and what it could not read and why.

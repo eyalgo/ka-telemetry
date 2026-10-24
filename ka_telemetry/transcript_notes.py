@@ -25,7 +25,7 @@ from collections.abc import Iterable
 
 from ka_telemetry import stream_usage
 
-__version__ = "0.1.1"
+__version__ = "0.2.0"
 
 NO_COST_LINE = (
     "This report carries no cost, because ka-telemetry never computes a cost from tokens."

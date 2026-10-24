@@ -46,14 +46,14 @@ import argparse
 import json
 import math
 import sys
-from dataclasses import asdict, dataclass, field, fields
+from dataclasses import InitVar, asdict, dataclass, field, fields
 from enum import Enum
 from pathlib import Path
 from typing import Any
 
 from ka_telemetry import stream_paths
 
-__version__ = "0.1.1"
+__version__ = "0.2.0"
 
 EVENT_API_REQUEST = "api_request"
 EVENT_SUBAGENT_COMPLETED = "subagent_completed"
@@ -69,6 +69,16 @@ ROW_KEYS = (
     "agent_name",
     "models",
     "request_count",
+    "input_tokens",
+    "output_tokens",
+    "cache_read_tokens",
+    "cache_creation_tokens",
+    "cost_usd",
+    "duration_ms",
+)
+
+# The six fields a row sums, in the order the JSON report lists their counts of invalid values.
+SUMMED_FIELDS = (
     "input_tokens",
     "output_tokens",
     "cache_read_tokens",
@@ -107,14 +117,13 @@ def decode_value(value: dict[str, Any] | None) -> Any:
     return None
 
 
-def as_number(raw: Any) -> int | float:
-    """Coerce a decoded attribute value to a number for summing. An `int`/`float` passes through;
-    a `str` that parses as one is parsed (the numeric-field-arriving-as-a-string case `decode_value`
-    itself cannot rule out); anything else — `None`, a non-numeric string, a `bool` — reads as
-    zero. A summary that stops on one malformed field is worse than one that under-counts a
-    single field it could not read."""
+def _number_or_none(raw: Any) -> int | float | None:
+    """`raw` as the number it reads as, or `None` when it reads as none: the one acceptance rule
+    `as_number` and the counting of invalid values share. An `int`/`float` passes through; a `str`
+    that parses as one is parsed, integer first; a `bool`, `None`, any other type and a string that
+    parses as neither is `None`. A valid zero is `0`, so it never reads as `None`."""
     if isinstance(raw, bool):
-        return 0
+        return None
     if isinstance(raw, (int, float)):
         return raw
     if isinstance(raw, str):
@@ -124,8 +133,18 @@ def as_number(raw: Any) -> int | float:
             try:
                 return float(raw)
             except ValueError:
-                return 0
-    return 0
+                return None
+    return None
+
+
+def as_number(raw: Any) -> int | float:
+    """Coerce a decoded attribute value to a number for summing. An `int`/`float` passes through;
+    a `str` that parses as one is parsed (the numeric-field-arriving-as-a-string case `decode_value`
+    itself cannot rule out); anything else — `None`, a non-numeric string, a `bool` — reads as
+    zero. A summary that stops on one malformed field is worse than one that under-counts a
+    single field it could not read."""
+    number = _number_or_none(raw)
+    return 0 if number is None else number
 
 
 def _flatten_attributes(attrs: list[dict] | None) -> dict[str, Any]:
@@ -366,7 +385,9 @@ class AgentRow:
     `workflow.run_id`, `query_source` and `agent.name`, further split (never merged) when the
     group's records disagree on a label of the chosen prefix. The four token classes, `cost_usd`
     and `duration_ms` are sums; `models` is the distinct set of models seen, sorted; `labels` is
-    empty when no prefix was chosen."""
+    empty when no prefix was chosen. The six figures are sums of the values that were numbers:
+    `invalid_values` holds, for each of them, how many of the row's records carried a value that
+    was present and not a number (positive counts only, empty when there are none)."""
 
     session_id: str | None
     workflow_run_id: str | None
@@ -381,6 +402,26 @@ class AgentRow:
     cache_creation_tokens: int | float
     cost_usd: int | float
     duration_ms: int | float
+    invalid_values: dict[str, int] = field(default_factory=dict)
+
+
+def _invalid_value_counts(
+    records: tuple[LogRecord, ...], fields: tuple[str, ...] = SUMMED_FIELDS
+) -> dict[str, int]:
+    """For each of `fields` in the order given, `SUMMED_FIELDS` by default, how many of `records`
+    carry it among their own attributes with a value that is not a number. Absent is not invalid:
+    a field only the resource carries, or no attribute at all, counts nothing. Only positive
+    counts are kept."""
+    counts: dict[str, int] = {}
+    for name in fields:
+        invalid = sum(
+            1
+            for record in records
+            if name in record.record_attrs and _number_or_none(record.record_attrs[name]) is None
+        )
+        if invalid:
+            counts[name] = invalid
+    return counts
 
 
 def agent_rows(
@@ -430,6 +471,7 @@ def agent_rows(
                 cache_creation_tokens=_summed_field(tuple(group), "cache_creation_tokens"),
                 cost_usd=_summed_field(tuple(group), "cost_usd"),
                 duration_ms=_summed_field(tuple(group), "duration_ms"),
+                invalid_values=_invalid_value_counts(tuple(group)),
             )
         )
     return tuple(rows)
@@ -468,17 +510,32 @@ class MetricLines:
     skipped: int
 
 
-def _parse_metric_lines(lines: list[str] | None) -> MetricLines:
+@dataclass(frozen=True)
+class _ParsedMetrics:
+    """`_parse_metric_lines`'s whole answer: the legacy `MetricLines`, and beside it, for the
+    report path only, how many cost datapoints of each session carried a value that was present
+    and not a number. The legacy projection reads such a value as `0.0` and keeps the point, so
+    the count has to be taken before that projection loses it. Only positive counts are kept."""
+
+    lines: MetricLines
+    invalid_cost_values_by_session: dict[str, int]
+
+
+def _parse_metric_lines(lines: list[str] | None) -> _ParsedMetrics:
     """Parse `metrics.jsonl`'s lines into `claude_code.cost.usage` datapoints only — every other
     metric name is walked past — and count the lines that are not exports. `lines` of `None` (the
     file does not exist) reads as no points and none skipped. A blank line is ignored. A line that
     is not JSON, whose outer value is not an object, or whose `body` is missing, not an object or
     empty is skipped and counted: the test `read_log_lines` applies to its own lines. Each export
     is one delta reading (`aggregationTemporality: 1`); summing across every export, never reading
-    only the last one, is `metrics_check`'s job — this function only decodes what is there."""
+    only the last one, is `metrics_check`'s job — this function only decodes what is there. A
+    point's value is its `asDouble` when that is present and not `null`, and otherwise its
+    `asInt`; a selected value that is not a number is counted against the point's `session.id`
+    (a point with none counts nowhere), and the point is kept with the value `0.0` as always."""
     if lines is None:
-        return MetricLines(points=(), skipped=0)
+        return _ParsedMetrics(MetricLines(points=(), skipped=0), {})
     points: list[MetricPoint] = []
+    invalid_by_session: dict[str, int] = {}
     skipped = 0
     for raw_line in lines:
         line = raw_line.strip()
@@ -508,19 +565,26 @@ def _parse_metric_lines(lines: list[str] | None) -> MetricLines:
                         raw_value = point.get("asDouble")
                         if raw_value is None:
                             raw_value = point.get("asInt")
-                        points.append(
-                            MetricPoint(
-                                attrs=_flatten_attributes(point.get("attributes")),
-                                value=float(as_number(raw_value)),
+                        attrs = _flatten_attributes(point.get("attributes"))
+                        session_id = attrs.get("session.id")
+                        if (
+                            session_id is not None
+                            and raw_value is not None
+                            and _number_or_none(raw_value) is None
+                        ):
+                            invalid_by_session[session_id] = (
+                                invalid_by_session.get(session_id, 0) + 1
                             )
-                        )
-    return MetricLines(points=tuple(points), skipped=skipped)
+                        points.append(MetricPoint(attrs=attrs, value=float(as_number(raw_value))))
+    return _ParsedMetrics(
+        MetricLines(points=tuple(points), skipped=skipped), invalid_by_session
+    )
 
 
 def read_metric_lines(lines: list[str] | None) -> tuple[MetricPoint, ...]:
     """The `claude_code.cost.usage` datapoints of `metrics.jsonl`'s lines, in export order — the
     points `_parse_metric_lines` finds, without its count. `None` (no file) reads as `()`."""
-    return _parse_metric_lines(lines).points
+    return _parse_metric_lines(lines).lines.points
 
 
 # The causes a session's check cannot tell apart, in the order they are shown. The tool observed
@@ -551,15 +615,25 @@ class SessionMetricsCheck:
 
     `possible_causes` is derived from those two, never passed: the causes of a missing metric, the
     causes of a total outside the tolerance, or `()` for a session that agrees. Selecting from the
-    state the check already holds keeps it following a custom `tolerance`."""
+    state the check already holds keeps it following a custom `tolerance`.
+
+    `invalid_log_cost_count` and `invalid_metric_cost_count` say how many request costs and how
+    many cost datapoints of the session were present and not a number, and so left out of the
+    figure beside them. They are read-only and sit outside the dataclass's fields — the report
+    path passes them at construction only, so the five fields, their order and `asdict` stay what
+    they were, and a check built from the four arguments reads both as 0."""
 
     session_id: str
     log_cost_usd: float
     metric_cost_usd: float | None
     within_tolerance: bool | None
     possible_causes: tuple[str, ...] = field(init=False)
+    log_cost_invalid: InitVar[int] = field(default=0, kw_only=True)
+    metric_cost_invalid: InitVar[int] = field(default=0, kw_only=True)
 
-    def __post_init__(self) -> None:
+    def __post_init__(self, log_cost_invalid: int, metric_cost_invalid: int) -> None:
+        object.__setattr__(self, "_invalid_log_cost_count", log_cost_invalid)
+        object.__setattr__(self, "_invalid_metric_cost_count", metric_cost_invalid)
         if self.metric_cost_usd is None:
             causes = NO_METRIC_CAUSES
         elif self.within_tolerance is False:
@@ -567,6 +641,16 @@ class SessionMetricsCheck:
         else:
             causes = ()
         object.__setattr__(self, "possible_causes", causes)
+
+    @property
+    def invalid_log_cost_count(self) -> int:
+        """How many of the session's request costs were present and not a number."""
+        return self._invalid_log_cost_count
+
+    @property
+    def invalid_metric_cost_count(self) -> int:
+        """How many of the session's cost datapoints held a value present and not a number."""
+        return self._invalid_metric_cost_count
 
 
 def metrics_check(
@@ -638,13 +722,38 @@ class SubagentRow:
     `total_tool_uses` summed across every `subagent_completed` record sharing that key.
     **Carries no `total_tokens`** — that figure is a single lumped total on the source record,
     the one shape this reader forbids beside the four token classes it keeps apart everywhere
-    else, so it is never read onto this row at all."""
+    else, so it is never read onto this row at all.
+
+    `invalid_duration_ms_count` and `invalid_total_tool_uses_count` say how many of the row's
+    records carried that value and it was not a number, and so was left out of the figure beside
+    it. They are read-only and sit outside the dataclass's fields — the report path passes them at
+    construction only, so the five fields, their order and `asdict` stay what they were, and a row
+    built from the five arguments reads both as 0."""
 
     session_id: str | None
     agent_type: str | None
     count: int
     duration_ms: int | float
     total_tool_uses: int | float
+    duration_ms_invalid: InitVar[int] = field(default=0, kw_only=True)
+    total_tool_uses_invalid: InitVar[int] = field(default=0, kw_only=True)
+
+    def __post_init__(self, duration_ms_invalid: int, total_tool_uses_invalid: int) -> None:
+        object.__setattr__(self, "_invalid_duration_ms_count", duration_ms_invalid)
+        object.__setattr__(self, "_invalid_total_tool_uses_count", total_tool_uses_invalid)
+
+    @property
+    def invalid_duration_ms_count(self) -> int:
+        """How many of the row's records held a `duration_ms` present and not a number."""
+        return self._invalid_duration_ms_count
+
+    @property
+    def invalid_total_tool_uses_count(self) -> int:
+        """How many of the row's records held a `total_tool_uses` present and not a number."""
+        return self._invalid_total_tool_uses_count
+
+
+SUBAGENT_FIELDS = ("duration_ms", "total_tool_uses")
 
 
 def subagent_rows(records: tuple[LogRecord, ...]) -> tuple[SubagentRow, ...]:
@@ -656,16 +765,21 @@ def subagent_rows(records: tuple[LogRecord, ...]) -> tuple[SubagentRow, ...]:
         key = (record.record_attrs.get("session.id"), record.record_attrs.get("agent_type"))
         groups.setdefault(key, []).append(record)
 
-    rows = [
-        SubagentRow(
-            session_id=session_id,
-            agent_type=agent_type,
-            count=len(group),
-            duration_ms=_summed_field(tuple(group), "duration_ms"),
-            total_tool_uses=_summed_field(tuple(group), "total_tool_uses"),
+    rows = []
+    for (session_id, agent_type), group in groups.items():
+        members = tuple(group)
+        invalid = _invalid_value_counts(members, SUBAGENT_FIELDS)
+        rows.append(
+            SubagentRow(
+                session_id=session_id,
+                agent_type=agent_type,
+                count=len(members),
+                duration_ms=_summed_field(members, "duration_ms"),
+                total_tool_uses=_summed_field(members, "total_tool_uses"),
+                duration_ms_invalid=invalid.get("duration_ms", 0),
+                total_tool_uses_invalid=invalid.get("total_tool_uses", 0),
+            )
         )
-        for (session_id, agent_type), group in groups.items()
-    ]
     return tuple(sorted(rows, key=lambda r: (r.session_id or "", r.agent_type or "")))
 
 
@@ -690,13 +804,17 @@ class CompareGroup:
     """One side of a `--compare` — the attribute value it matched, how many runs it covers, its
     summed totals, and each of those totals' mean per run. `mean_cost_per_run` is
     `mean_per_run.cost_usd`, kept by name because the `B − A` and `B / A` figures are taken on
-    it."""
+    it. `invalid_values` is, per summed field, how many of the side's own records carried a value
+    for it that was not a number — only positive counts are kept, and a missing key reads as 0.
+    It takes part in equality but not in the hash, so a side stays hashable as it was before the
+    counts: two equal sides still hash alike, because they agree on every field the hash reads."""
 
     value: str
     run_count: int
     totals: CompareTotals
     mean_per_run: CompareTotals
     mean_cost_per_run: float
+    invalid_values: dict[str, int] = field(default_factory=dict, hash=False)
 
 
 @dataclass(frozen=True)
@@ -752,6 +870,7 @@ def _compare_group(
         totals=totals,
         mean_per_run=mean_per_run,
         mean_cost_per_run=mean_per_run.cost_usd,
+        invalid_values=_invalid_value_counts(matching),
     )
 
 
@@ -912,18 +1031,41 @@ class StreamReport:
     metrics_reason: str | None = None
 
 
+def _invalid_costs_by_session(rows: tuple[AgentRow, ...]) -> dict[str, int]:
+    """For each session `rows` name, how many of its requests' `cost_usd` were present and not a
+    number: the sum of its rows' own counts. A row with no session counts nowhere."""
+    counts: dict[str, int] = {}
+    for row in rows:
+        if row.session_id is not None:
+            counts[row.session_id] = counts.get(row.session_id, 0) + row.invalid_values.get(
+                "cost_usd", 0
+            )
+    return counts
+
+
 def _shown_checks(
     records: tuple[LogRecord, ...],
     shown_rows: tuple[AgentRow, ...],
-    metric_points: tuple[MetricPoint, ...],
+    metrics: _ParsedMetrics,
 ) -> tuple[SessionMetricsCheck, ...]:
     """The metric is a whole session's, so it is held against the session's whole log cost —
     never the `--where`-narrowed rows, which would report a false gap for every session a filter
-    narrower than a session touches. The narrowed rows still decide which sessions are shown."""
+    narrower than a session touches. The narrowed rows still decide which sessions are shown. The
+    two counts of values left out follow the figure they stand beside: the request-cost count is
+    taken over the same whole-session rows, and the metric count over every export."""
     shown = {row.session_id for row in shown_rows}
+    all_rows = agent_rows(records)
+    invalid_log = _invalid_costs_by_session(all_rows)
     return tuple(
-        check
-        for check in metrics_check(agent_rows(records), metric_points)
+        SessionMetricsCheck(
+            check.session_id,
+            check.log_cost_usd,
+            check.metric_cost_usd,
+            check.within_tolerance,
+            log_cost_invalid=invalid_log.get(check.session_id, 0),
+            metric_cost_invalid=metrics.invalid_cost_values_by_session.get(check.session_id, 0),
+        )
+        for check in metrics_check(all_rows, metrics.lines.points)
         if check.session_id in shown
     )
 
@@ -973,7 +1115,7 @@ def read_report_result(
     )
     checks = None
     if metrics_file.state in (ReadState.READ, ReadState.NOTHING_RECEIVED):
-        checks = _shown_checks(parsed.records, rows, metrics.points)
+        checks = _shown_checks(parsed.records, rows, metrics)
 
     compare_result = None
     if comparison is not None:
@@ -989,7 +1131,7 @@ def read_report_result(
         metrics_check=checks,
         skipped_lines=parsed.skipped,
         compare=compare_result,
-        skipped_metric_lines=metrics.skipped,
+        skipped_metric_lines=metrics.lines.skipped,
         subagents_filtered_out=bool(where and completed and not shown_completed),
         metrics_state=metrics_file.state,
         metrics_reason=(
@@ -1200,21 +1342,17 @@ def _check_lines(
     if not checks:
         lines.append("  No sessions to check.")
     for check in checks:
+        log_figure = _marked(f"log_cost_usd={check.log_cost_usd:.6f}", check.invalid_log_cost_count)
         if check.metric_cost_usd is None:
             lines.append(
-                f"  session={check.session_id}  log_cost_usd={check.log_cost_usd:.6f}  "
-                f"no metric export{_causes_text(check)}"
+                f"  session={check.session_id}  {log_figure}  no metric export{_causes_text(check)}"
             )
-        elif check.within_tolerance:
-            lines.append(
-                f"  session={check.session_id}  log_cost_usd={check.log_cost_usd:.6f}  "
-                f"metric_cost_usd={check.metric_cost_usd:.6f}"
-            )
-        else:
-            lines.append(
-                f"  session={check.session_id}  log_cost_usd={check.log_cost_usd:.6f}  "
-                f"metric_cost_usd={check.metric_cost_usd:.6f}  MISMATCH >1%{_causes_text(check)}"
-            )
+            continue
+        metric_figure = _marked(
+            f"metric_cost_usd={check.metric_cost_usd:.6f}", check.invalid_metric_cost_count
+        )
+        verdict = "" if check.within_tolerance else f"  MISMATCH >1%{_causes_text(check)}"
+        lines.append(f"  session={check.session_id}  {log_figure}  {metric_figure}{verdict}")
     return lines
 
 
@@ -1246,19 +1384,30 @@ def render_checks(
     return "\n".join(lines) + "\n"
 
 
+def _check_payload(check: SessionMetricsCheck) -> dict[str, Any]:
+    """One session's `metrics_check` entry: the five legacy members, then, only when the session
+    left a value out, `invalid_values` with the count of each figure that did, log before metric."""
+    entry: dict[str, Any] = {
+        "session_id": check.session_id,
+        "log_cost_usd": check.log_cost_usd,
+        "metric_cost_usd": check.metric_cost_usd,
+        "within_tolerance": check.within_tolerance,
+        "possible_causes": list(check.possible_causes),
+    }
+    invalid: dict[str, int] = {}
+    if check.invalid_log_cost_count:
+        invalid["log_cost_usd"] = check.invalid_log_cost_count
+    if check.invalid_metric_cost_count:
+        invalid["metric_cost_usd"] = check.invalid_metric_cost_count
+    if invalid:
+        entry[INVALID_VALUES_MEMBER] = invalid
+    return entry
+
+
 def _checks_payload(checks: tuple[SessionMetricsCheck, ...] | None) -> list[dict[str, Any]] | None:
     if checks is None:
         return None
-    return [
-        {
-            "session_id": c.session_id,
-            "log_cost_usd": c.log_cost_usd,
-            "metric_cost_usd": c.metric_cost_usd,
-            "within_tolerance": c.within_tolerance,
-            "possible_causes": list(c.possible_causes),
-        }
-        for c in checks
-    ]
+    return [_check_payload(check) for check in checks]
 
 
 def _metrics_file_member(
@@ -1325,6 +1474,38 @@ def render_checks_json(
     )
 
 
+# The row's second text line: each figure's label in the report, and the row field it prints.
+_SECOND_LINE_FIGURES = (
+    ("input", "input_tokens"),
+    ("output", "output_tokens"),
+    ("cache_read", "cache_read_tokens"),
+    ("cache_creation", "cache_creation_tokens"),
+    ("duration_ms", "duration_ms"),
+)
+
+INVALID_VALUES_MEMBER = "invalid_values"
+TOTAL_COST_INVALID_KEY = "total_cost_usd"
+
+
+def _positive_counts(invalid_values: dict[str, int]) -> dict[str, int]:
+    """The positive counts of `invalid_values`, one per summed field, in `SUMMED_FIELDS` order
+    whatever order they were put in."""
+    return {
+        name: invalid_values[name] for name in SUMMED_FIELDS if invalid_values.get(name, 0) >= 1
+    }
+
+
+def _marked(figure: str, count: int) -> str:
+    """`figure` as the text report shows it: followed by one space and `(invalid: count)` when
+    `count` is 1 or more, and unchanged — no mark, no extra line — when it is 0."""
+    return f"{figure} (invalid: {count})" if count else figure
+
+
+def _total_cost_invalid(rows: tuple[AgentRow, ...]) -> int:
+    """How many cost values the shown rows left out, in all: the sum of their `cost_usd` counts."""
+    return sum(row.invalid_values.get("cost_usd", 0) for row in rows)
+
+
 def render(
     rows: tuple[AgentRow, ...],
     sub_rows: tuple[SubagentRow, ...],
@@ -1343,14 +1524,18 @@ def render(
     the Agent-tool agent count, always carrying `SUBAGENT_COVERAGE_NOTE`; the totals check, or a
     stated reason it did not run; and, when asked for, the `--compare` block. Every section
     states its own absence in words rather than rendering an empty table. A row that carries
-    labels gets one more line, headed by the chosen `prefix`. Unreadable `metrics.jsonl` lines, when
-    there are any, are stated at the end of the first line, after the unchanged `logs.jsonl`
-    count. With `subagents_filtered_out`, an empty completed-agents section says a `--where` left
-    nothing in it, rather than that nothing was read. `metrics_state`, `metrics_reason` and
-    `directory` say what reading `metrics.jsonl` came to, as `render_checks` takes them."""
+    labels gets one more line, headed by the chosen `prefix`. A figure whose row left out values
+    that were not numbers is followed by ` (invalid: n)` on its own line, as is the total cost line
+    by the sum of the rows' cost counts; a count of zero adds nothing. Unreadable `metrics.jsonl`
+    lines, when there are any, are stated at the end of the first line, after the unchanged
+    `logs.jsonl` count. With `subagents_filtered_out`, an empty completed-agents section says a
+    `--where` left nothing in it, rather than that nothing was read. `metrics_state`,
+    `metrics_reason` and `directory` say what reading `metrics.jsonl` came to, as `render_checks`
+    takes them."""
     validate_prefix(prefix)
     ordered = _by_cost(rows)
     total_cost = _total(r.cost_usd for r in ordered)
+    total_cost_invalid = _total_cost_invalid(ordered)
 
     first = f"{len(ordered)} agent row(s), {skipped_lines} unreadable line(s) skipped."
     if skipped_metric_lines:
@@ -1359,17 +1544,23 @@ def render(
     for row in ordered:
         lines.append(
             f"  {_row_label(row)}  requests={row.request_count}  "
-            f"models={','.join(row.models) or '(none)'}  cost_usd={row.cost_usd:.6f}"
+            f"models={','.join(row.models) or '(none)'}  "
+            + _marked(f"cost_usd={row.cost_usd:.6f}", row.invalid_values.get("cost_usd", 0))
         )
         lines.append(
-            f"    input={row.input_tokens} output={row.output_tokens} "
-            f"cache_read={row.cache_read_tokens} cache_creation={row.cache_creation_tokens} "
-            f"duration_ms={row.duration_ms}"
+            "    "
+            + " ".join(
+                _marked(
+                    f"{label}={getattr(row, field_name)}",
+                    row.invalid_values.get(field_name, 0),
+                )
+                for label, field_name in _SECOND_LINE_FIGURES
+            )
         )
         if prefix is not None and row.labels:
             label_text = ", ".join(f"{k}={v}" for k, v in sorted(row.labels.items()))
             lines.append(f"    {prefix}: {label_text}")
-    lines.append(f"Total cost_usd: {total_cost:.6f}")
+    lines.append(_marked(f"Total cost_usd: {total_cost:.6f}", total_cost_invalid))
     lines.append(COST_ESTIMATE_NOTE)
     if _shows_custom_agent(ordered, sub_rows):
         lines.append(CUSTOM_AGENT_EXPLANATION)
@@ -1381,10 +1572,13 @@ def render(
             SUBAGENTS_FILTERED_OUT_LINE if subagents_filtered_out else NO_SUBAGENT_RECORDS_LINE
         )
     for sub_row in sub_rows:
+        duration = _marked(f"duration_ms={sub_row.duration_ms}", sub_row.invalid_duration_ms_count)
+        tool_uses = _marked(
+            f"total_tool_uses={sub_row.total_tool_uses}", sub_row.invalid_total_tool_uses_count
+        )
         lines.append(
             f"  session={sub_row.session_id} agent_type={sub_row.agent_type} "
-            f"count={sub_row.count} duration_ms={sub_row.duration_ms} "
-            f"total_tool_uses={sub_row.total_tool_uses}"
+            f"count={sub_row.count} {duration} {tool_uses}"
         )
     lines.append("")
 
@@ -1401,18 +1595,26 @@ def render(
     return "\n".join(lines).rstrip() + "\n"
 
 
-def _compare_figures_text(figures: CompareTotals) -> str:
+def _compare_figures_text(figures: CompareTotals, invalid_values: dict[str, int]) -> str:
     """The four token classes, `cost_usd` and `duration_ms` on one line — a summed count prints
-    as the integer it is, a per-run mean to two places, and cost to six, as everywhere else."""
+    as the integer it is, a per-run mean to two places, and cost to six, as everywhere else. A
+    figure whose side counts invalid values for it is followed by that count."""
 
     def count(value: int | float) -> str:
         return str(value) if isinstance(value, int) else f"{value:.2f}"
 
-    return (
-        f"input={count(figures.input_tokens)} output={count(figures.output_tokens)} "
-        f"cache_read={count(figures.cache_read_tokens)} "
-        f"cache_creation={count(figures.cache_creation_tokens)} "
-        f"cost_usd={figures.cost_usd:.6f} duration_ms={count(figures.duration_ms)}"
+    def marked(name: str, shown: str, field_name: str) -> str:
+        return _marked(f"{name}={shown}", invalid_values.get(field_name, 0))
+
+    return " ".join(
+        (
+            marked("input", count(figures.input_tokens), "input_tokens"),
+            marked("output", count(figures.output_tokens), "output_tokens"),
+            marked("cache_read", count(figures.cache_read_tokens), "cache_read_tokens"),
+            marked("cache_creation", count(figures.cache_creation_tokens), "cache_creation_tokens"),
+            marked("cost_usd", f"{figures.cost_usd:.6f}", "cost_usd"),
+            marked("duration_ms", count(figures.duration_ms), "duration_ms"),
+        )
     )
 
 
@@ -1422,13 +1624,19 @@ def _render_compare(result: CompareResult) -> list[str]:
         if group is None:
             lines.append(f"  {label}: no runs")
         else:
+            cost_invalid = group.invalid_values.get("cost_usd", 0)
             lines.append(
                 f"  {label}: runs={group.run_count}  "
-                f"mean_cost_per_run={group.mean_cost_per_run:.6f}  "
-                f"total_cost_usd={group.totals.cost_usd:.6f}"
+                + _marked(f"mean_cost_per_run={group.mean_cost_per_run:.6f}", cost_invalid)
+                + "  "
+                + _marked(f"total_cost_usd={group.totals.cost_usd:.6f}", cost_invalid)
             )
-            lines.append(f"    totals:  {_compare_figures_text(group.totals)}")
-            lines.append(f"    per run: {_compare_figures_text(group.mean_per_run)}")
+            lines.append(
+                f"    totals:  {_compare_figures_text(group.totals, group.invalid_values)}"
+            )
+            lines.append(
+                f"    per run: {_compare_figures_text(group.mean_per_run, group.invalid_values)}"
+            )
     if result.diff is not None:
         lines.append(f"  {result.b_value} - {result.a_value} = {result.diff:.6f}")
         if result.ratio is not None:
@@ -1440,16 +1648,20 @@ def _render_compare(result: CompareResult) -> list[str]:
 
 def _compare_group_json(group: CompareGroup | None) -> dict[str, Any] | None:
     """One `--compare` side keyed for `--json` — the figures the table prints, or `None` for a
-    value that matched no runs."""
+    value that matched no runs. `invalid_values` comes last, only when a count is positive."""
     if group is None:
         return None
-    return {
+    side: dict[str, Any] = {
         "run_count": group.run_count,
         "mean_cost_per_run": group.mean_cost_per_run,
         "total_cost_usd": group.totals.cost_usd,
         "totals": asdict(group.totals),
         "mean_per_run": asdict(group.mean_per_run),
     }
+    counts = _positive_counts(group.invalid_values)
+    if counts:
+        side[INVALID_VALUES_MEMBER] = counts
+    return side
 
 
 def _row_json(row: AgentRow, prefix: str | None) -> dict[str, Any]:
@@ -1475,6 +1687,32 @@ def _row_json(row: AgentRow, prefix: str | None) -> dict[str, Any]:
             "duration_ms": row.duration_ms,
         }
     )
+    counts = _positive_counts(row.invalid_values)
+    if counts:
+        entry[INVALID_VALUES_MEMBER] = counts
+    return entry
+
+
+def _subagent_row_json(row: SubagentRow) -> dict[str, Any]:
+    """One Agent-tool agents row keyed for `--json`: its five members, then `invalid_values` last
+    when at least one of its two counts is positive, holding the positive counts in field order."""
+    entry: dict[str, Any] = {
+        "session_id": row.session_id,
+        "agent_type": row.agent_type,
+        "count": row.count,
+        "duration_ms": row.duration_ms,
+        "total_tool_uses": row.total_tool_uses,
+    }
+    counts = {
+        name: count
+        for name, count in (
+            ("duration_ms", row.invalid_duration_ms_count),
+            ("total_tool_uses", row.invalid_total_tool_uses_count),
+        )
+        if count >= 1
+    }
+    if counts:
+        entry[INVALID_VALUES_MEMBER] = counts
     return entry
 
 
@@ -1492,26 +1730,25 @@ def render_json(
     directory: Path | str | None = None,
 ) -> str:
     """The machine rows — the same figures `render` prints, keyed rather than columned, and the
-    cost marking as the last member. `skipped_metric_lines`, when given, is the first member and
-    `metrics_file` the one after it; the commands always give both, as `render_checks_json` takes
-    them. A `metrics.jsonl` that could not be read leaves out `metrics_check`."""
+    cost marking as the last member. A row that left out values that were not numbers ends with an
+    `invalid_values` member of per-figure counts, and the document carries `invalid_values` with
+    `total_cost_usd` straight after `total_cost_usd`; neither member exists at a count of zero.
+    `skipped_metric_lines`, when given, is the first member and `metrics_file` the one after
+    it; the commands always give both, as `render_checks_json` takes them. A `metrics.jsonl`
+    that could not be read leaves out `metrics_check`."""
     validate_prefix(prefix)
     ordered = _by_cost(rows)
     payload: dict[str, Any] = {
         "skipped_lines": skipped_lines,
         "total_cost_usd": _total(r.cost_usd for r in ordered),
+    }
+    total_cost_invalid = _total_cost_invalid(ordered)
+    if total_cost_invalid:
+        payload[INVALID_VALUES_MEMBER] = {TOTAL_COST_INVALID_KEY: total_cost_invalid}
+    payload |= {
         "rows": [_row_json(row, prefix) for row in ordered],
         "subagent_coverage_note": SUBAGENT_COVERAGE_NOTE,
-        "subagent_rows": [
-            {
-                "session_id": r.session_id,
-                "agent_type": r.agent_type,
-                "count": r.count,
-                "duration_ms": r.duration_ms,
-                "total_tool_uses": r.total_tool_uses,
-            }
-            for r in sub_rows
-        ],
+        "subagent_rows": [_subagent_row_json(row) for row in sub_rows],
     }
     if metrics_state not in _FAILED_METRICS_STATEMENTS:
         payload["metrics_check"] = _checks_payload(checks)
@@ -1552,6 +1789,15 @@ _PREFIX_REFUSALS = {
         "instead"
     ),
 }
+
+# `agents` alone refuses this prefix: only a row that left out an invalid value carries the member,
+# so the shared row-key refusal ("a field in each row") would not be true of it, and setup, which
+# shares `check_prefix`, keeps accepting it.
+_INVALID_VALUES_PREFIX_REFUSAL = (
+    "--prefix 'invalid_values' is also the name of a field the --json output adds to a row that "
+    "left out an invalid value, so labels under it cannot be shown; use --where to select "
+    "requests by those attributes instead"
+)
 
 
 class _CommandParser(argparse.ArgumentParser):
@@ -1679,6 +1925,8 @@ def main(argv: list[str] | None = None) -> int:
     problem = check_prefix(args.prefix)
     if problem is not None:
         parser.error(_PREFIX_REFUSALS[problem](args.prefix))
+    if args.prefix == INVALID_VALUES_MEMBER:
+        parser.error(_INVALID_VALUES_PREFIX_REFUSAL)
     where = _parse_where(args.where)
 
     reader = build_reader(args.dir)
